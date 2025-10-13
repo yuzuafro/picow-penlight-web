@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ペンライトコントローラー</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎭 ペンライトコントローラー</h1>
+            <p>Web Bluetooth APIでペンライトを制御</p>
+        </header>
+
+        <main>
+            <!-- 接続状態 -->
+            <section class="connection-section">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">未接続</span>
+                </div>
+                <button id="connectBtn" class="btn btn-primary">ペンライトに接続</button>
+                <button id="disconnectBtn" class="btn btn-secondary" style="display: none;">切断</button>
+            </section>
+
+            <!-- コントロール -->
+            <section class="control-section" id="controlSection" style="display: none;">
+                <!-- モード選択 -->
+                <div class="mode-selection">
+                    <h2>制御モード</h2>
+                    <div class="mode-buttons">
+                        <button id="colorModeBtn" class="btn btn-mode active">色選択モード</button>
+                        <button id="autoModeBtn" class="btn btn-mode">自動制御モード</button>
+                    </div>
+                </div>
+
+                <!-- 色選択モード -->
+                <div class="color-mode" id="colorMode">
+                    <h3>色を選択</h3>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorPicker" value="#ff0000">
+                        <div class="color-info">
+                            <span id="colorValue">#ff0000</span>
+                            <div class="color-preview" id="colorPreview"></div>
+                        </div>
+                    </div>
+                    <div class="preset-colors">
+                        <h4>プリセット色</h4>
+                        <div class="preset-grid">
+                            <button class="preset-color" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
+                            <button class="preset-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
+                            <button class="preset-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
+                            <button class="preset-color" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
+                            <button class="preset-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
+                            <button class="preset-color" data-color="#8000ff" style="background-color: #8000ff;" title="紫"></button>
+                            <button class="preset-color" data-color="#ff00ff" style="background-color: #ff00ff;" title="マゼンタ"></button>
+                            <button class="preset-color" data-color="#00ffff" style="background-color: #00ffff;" title="シアン"></button>
+                            <button class="preset-color" data-color="#ffffff" style="background-color: #ffffff;" title="白"></button>
+                            <button class="preset-color" data-color="#000000" style="background-color: #000000;" title="黒"></button>
+                        </div>
+                    </div>
+                    <button id="applyColorBtn" class="btn btn-apply">色を適用</button>
+                </div>
+
+                <!-- 自動制御モード -->
+                <div class="auto-mode" id="autoMode" style="display: none;">
+                    <h3>自動制御パターン</h3>
+                    <div class="pattern-selection">
+                        <div class="pattern-option">
+                            <input type="radio" id="pattern1" name="pattern" value="1" checked>
+                            <label for="pattern1">
+                                <span class="pattern-name">パターン1: 順次変化</span>
+                                <span class="pattern-desc">赤 → 橙 → 黄 → 緑 → 青 → 紫 → ピンク</span>
+                            </label>
+                        </div>
+                        <div class="pattern-option">
+                            <input type="radio" id="pattern2" name="pattern" value="2">
+                            <label for="pattern2">
+                                <span class="pattern-name">パターン2: 点滅</span>
+                                <span class="pattern-desc">各色で点滅しながら変化</span>
+                            </label>
+                        </div>
+                        <div class="pattern-option">
+                            <input type="radio" id="pattern3" name="pattern" value="3">
+                            <label for="pattern3">
+                                <span class="pattern-name">パターン3: 高速変化</span>
+                                <span class="pattern-desc">高速で色を切り替え</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="auto-controls">
+                        <button id="startAutoBtn" class="btn btn-success">自動制御開始</button>
+                        <button id="stopAutoBtn" class="btn btn-danger" style="display: none;">自動制御停止</button>
+                    </div>
+                </div>
+
+                <!-- 共通コントロール -->
+                <div class="common-controls">
+                    <button id="clearBtn" class="btn btn-warning">全消灯</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="info">
+                <p>💡 Raspberry Pi Pico W + Web Bluetooth API</p>
+                <p><small>※ このアプリはHTTPS環境でのみ動作します</small></p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
