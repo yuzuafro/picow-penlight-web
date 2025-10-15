@@ -16,16 +16,46 @@
         <main>
             <!-- 接続状態 -->
             <section class="connection-section">
-                <div class="status-indicator" id="statusIndicator">
-                    <span class="status-dot" id="statusDot"></span>
-                    <span id="statusText">未接続</span>
+                <div class="status-summary">
+                    <span class="device-count">接続済み: <strong id="connectedCount">0</strong>台</span>
                 </div>
-                <button id="connectBtn" class="btn btn-primary">ペンライトに接続</button>
-                <button id="disconnectBtn" class="btn btn-secondary" style="display: none;">切断</button>
+                <button id="connectBtn" class="btn btn-primary">ペンライトを追加</button>
+            </section>
+
+            <!-- 接続済みデバイス一覧 -->
+            <section class="devices-section" id="devicesSection" style="display: none;">
+                <h2>接続済みデバイス</h2>
+                <div id="devicesList" class="devices-list"></div>
             </section>
 
             <!-- コントロール -->
             <section class="control-section" id="controlSection" style="display: none;">
+                <!-- 制御対象選択 -->
+                <div class="target-selection">
+                    <h2>制御対象</h2>
+                    <div class="target-buttons">
+                        <button id="targetAllBtn" class="btn btn-target active" data-target="all">全デバイス</button>
+                        <button id="targetGroupBtn" class="btn btn-target" data-target="group">グループ</button>
+                        <button id="targetIndividualBtn" class="btn btn-target" data-target="individual">個別</button>
+                    </div>
+
+                    <!-- グループ選択 -->
+                    <div id="groupSelection" class="selection-panel" style="display: none;">
+                        <label>グループを選択:</label>
+                        <div class="group-buttons" id="groupButtons">
+                            <button class="btn btn-group" data-group="A">グループA</button>
+                            <button class="btn btn-group" data-group="B">グループB</button>
+                            <button class="btn btn-group" data-group="C">グループC</button>
+                        </div>
+                    </div>
+
+                    <!-- 個別デバイス選択 -->
+                    <div id="individualSelection" class="selection-panel" style="display: none;">
+                        <label>デバイスを選択:</label>
+                        <div class="individual-buttons" id="individualButtons"></div>
+                    </div>
+                </div>
+
                 <!-- モード選択 -->
                 <div class="mode-selection">
                     <h2>制御モード</h2>
@@ -38,15 +68,47 @@
                 <!-- 色選択モード -->
                 <div class="color-mode" id="colorMode">
                     <h3>色を選択</h3>
-                    <div class="color-picker-container">
-                        <input type="color" id="colorPicker" value="#ff0000">
-                        <div class="color-info">
-                            <span id="colorValue">#ff0000</span>
-                            <div class="color-preview" id="colorPreview"></div>
+
+                    <!-- カラープレビュー（大きく表示） -->
+                    <div class="color-preview-main" id="colorPreview"></div>
+                    <div class="color-value-display">
+                        <span id="colorValue">#ff0000</span>
+                    </div>
+
+                    <!-- 2Dカラーピッカー -->
+                    <div class="custom-color-picker">
+                        <!-- 色相スライダー -->
+                        <div class="slider-group">
+                            <label for="hueSlider">
+                                <span class="slider-label">🌈 色相</span>
+                                <span class="slider-value" id="hueValue">0°</span>
+                            </label>
+                            <input type="range" id="hueSlider" min="0" max="360" value="0" class="color-slider hue-slider">
+                        </div>
+
+                        <!-- 2D カラーピッカー（彩度 × 明度） -->
+                        <div class="color-picker-2d-container">
+                            <label class="slider-label">💧 彩度 × ☀️ 明度</label>
+                            <canvas id="colorPicker2D" width="280" height="200"></canvas>
+                            <div class="color-picker-cursor" id="colorPickerCursor"></div>
+                        </div>
+
+                        <!-- 彩度・明度の値表示 -->
+                        <div class="color-values-display">
+                            <span class="color-detail">
+                                <span class="value-label">彩度:</span>
+                                <span class="value-number" id="saturationValue">100%</span>
+                            </span>
+                            <span class="color-detail">
+                                <span class="value-label">明度:</span>
+                                <span class="value-number" id="lightnessValue">50%</span>
+                            </span>
                         </div>
                     </div>
+
+                    <!-- プリセット色 -->
                     <div class="preset-colors">
-                        <h4>プリセット色</h4>
+                        <h4>よく使う色</h4>
                         <div class="preset-grid">
                             <button class="preset-color" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
                             <button class="preset-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
@@ -60,7 +122,10 @@
                             <button class="preset-color" data-color="#000000" style="background-color: #000000;" title="黒"></button>
                         </div>
                     </div>
-                    <button id="applyColorBtn" class="btn btn-apply">色を適用</button>
+
+                    <p style="text-align: center; color: #718096; font-size: 0.9rem; margin-top: 15px;">
+                        💡 スライダーを動かすと自動的に反映されます
+                    </p>
                 </div>
 
                 <!-- 自動制御モード -->
@@ -110,6 +175,6 @@
         </footer>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script_multi.js"></script>
 </body>
 </html>

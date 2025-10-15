@@ -1,4 +1,4 @@
-class PenlightController {
+class MultiPenlightController {
     constructor() {
         // 複数デバイス管理
         this.devices = new Map(); // デバイスID -> デバイス情報のマップ
@@ -18,13 +18,18 @@ class PenlightController {
         this.colorSendTimer = null;
         this.colorSendDelay = 100; // 100msのデバウンス
 
+        // 現在のHSL値
+        this.currentHue = 0;
+        this.currentSaturation = 100;
+        this.currentLightness = 50;
+
         this.initializeElements();
         this.bindEvents();
         this.checkBluetoothSupport();
     }
 
     initializeElements() {
-        // UI要素の取得
+        // 接続管理
         this.connectedCount = document.getElementById('connectedCount');
         this.connectBtn = document.getElementById('connectBtn');
         this.devicesSection = document.getElementById('devicesSection');
@@ -46,7 +51,7 @@ class PenlightController {
         this.colorMode = document.getElementById('colorMode');
         this.autoMode = document.getElementById('autoMode');
 
-        // カスタムカラースライダー
+        // カラーピッカー
         this.hueSlider = document.getElementById('hueSlider');
         this.hueValue = document.getElementById('hueValue');
         this.saturationValue = document.getElementById('saturationValue');
@@ -60,11 +65,6 @@ class PenlightController {
         this.colorPicker2DContext = this.colorPicker2D.getContext('2d');
         this.isDragging = false;
 
-        // 現在のHSL値
-        this.currentHue = 0;
-        this.currentSaturation = 100;
-        this.currentLightness = 50;
-
         // プリセット色
         this.presetColors = document.querySelectorAll('.preset-color');
 
@@ -76,7 +76,7 @@ class PenlightController {
         // 共通コントロール
         this.clearBtn = document.getElementById('clearBtn');
 
-        // 初期色の設定と2Dピッカーの描画
+        // 初期化
         this.draw2DColorPicker();
         this.updateColorDisplay();
         this.updateCursorPosition();
@@ -103,14 +103,12 @@ class PenlightController {
         this.colorModeBtn.addEventListener('click', () => this.switchToColorMode());
         this.autoModeBtn.addEventListener('click', () => this.switchToAutoMode());
 
-        // 色相スライダー（デバウンスで反映）
+        // 色相スライダー
         this.hueSlider.addEventListener('input', () => {
             this.currentHue = parseInt(this.hueSlider.value);
             this.draw2DColorPicker();
             this.updateColorDisplay();
-            if (this.isConnected) {
-                this.debouncedApplyColor();
-            }
+            this.debouncedApplyColor();
         });
 
         // 2Dカラーピッカーのイベント
@@ -135,9 +133,7 @@ class PenlightController {
             btn.addEventListener('click', () => {
                 const color = btn.dataset.color;
                 this.setColorFromHex(color);
-                if (this.isConnected) {
-                    this.applyCurrentColor();
-                }
+                this.applyCurrentColor();
             });
         });
 
@@ -156,24 +152,27 @@ class PenlightController {
         }
     }
 
+    // === デバイス接続管理 ===
+
     async connect() {
         try {
             this.connectBtn.classList.add('loading');
 
-            // デバイスの検索（Penlight-で始まる全デバイス）
+            // デバイスの検索
             const device = await navigator.bluetooth.requestDevice({
                 filters: [{ namePrefix: 'Penlight-' }],
                 optionalServices: [this.SERVICE_UUID]
             });
 
-            console.log('デバイスが選択されました:', device.name);
+            const deviceId = this.extractDeviceId(device.name);
 
             // 既に接続されているかチェック
-            const deviceId = this.extractDeviceId(device.name);
             if (this.devices.has(deviceId)) {
                 this.showError('このデバイスは既に接続されています');
                 return;
             }
+
+            console.log('デバイスが選択されました:', device.name);
 
             // 切断イベントの監視
             device.addEventListener('gattserverdisconnected', () => {
@@ -182,17 +181,9 @@ class PenlightController {
 
             // GATTサーバーに接続
             const server = await device.gatt.connect();
-            console.log('GATTサーバーに接続しました');
-
-            // サービスの取得
             const service = await server.getPrimaryService(this.SERVICE_UUID);
-            console.log('サービスを取得しました');
-
-            // キャラクタリスティックの取得
             const colorCharacteristic = await service.getCharacteristic(this.COLOR_CHAR_UUID);
             const controlCharacteristic = await service.getCharacteristic(this.CONTROL_CHAR_UUID);
-
-            console.log('キャラクタリスティックを取得しました');
 
             // デバイス情報を保存
             this.devices.set(deviceId, {
@@ -208,6 +199,7 @@ class PenlightController {
             });
 
             this.onDeviceConnected(deviceId);
+            console.log(`デバイス ${device.name} に接続しました`);
         } catch (error) {
             console.error('接続エラー:', error);
             if (error.name !== 'NotFoundError') {
@@ -218,79 +210,244 @@ class PenlightController {
         }
     }
 
+    async disconnectDevice(deviceId) {
+        const deviceInfo = this.devices.get(deviceId);
+        if (deviceInfo && deviceInfo.device.gatt.connected) {
+            await deviceInfo.device.gatt.disconnect();
+        }
+        this.devices.delete(deviceId);
+        this.deviceGroups.delete(deviceId);
+        this.updateDevicesList();
+        this.updateConnectedCount();
+        this.updateIndividualButtons();
+    }
+
     extractDeviceId(deviceName) {
-        // "Penlight-1" から "1" を抽出
         const match = deviceName.match(/Penlight-(\d+)/);
         return match ? match[1] : deviceName;
     }
 
-    async disconnect() {
-        try {
-            if (this.device && this.device.gatt.connected) {
-                await this.device.gatt.disconnect();
+    onDeviceConnected(deviceId) {
+        this.updateDevicesList();
+        this.updateConnectedCount();
+        this.updateIndividualButtons();
+
+        // コントロールセクションを表示
+        if (this.devices.size > 0) {
+            this.devicesSection.style.display = 'block';
+            this.controlSection.style.display = 'block';
+        }
+    }
+
+    onDeviceDisconnected(deviceId) {
+        console.log(`デバイス ${deviceId} が切断されました`);
+        this.devices.delete(deviceId);
+        this.deviceGroups.delete(deviceId);
+        this.updateDevicesList();
+        this.updateConnectedCount();
+        this.updateIndividualButtons();
+
+        // デバイスがなくなったらコントロールを非表示
+        if (this.devices.size === 0) {
+            this.devicesSection.style.display = 'none';
+            this.controlSection.style.display = 'none';
+        }
+    }
+
+    // === UI更新 ===
+
+    updateConnectedCount() {
+        this.connectedCount.textContent = this.devices.size;
+    }
+
+    updateDevicesList() {
+        this.devicesList.innerHTML = '';
+
+        this.devices.forEach((deviceInfo, deviceId) => {
+            const card = document.createElement('div');
+            card.className = 'device-card';
+
+            const group = this.deviceGroups.get(deviceId);
+            const groupBadge = group
+                ? `<span class="device-group">${group}</span>`
+                : '<span class="device-group no-group">未設定</span>';
+
+            card.innerHTML = `
+                <div class="device-info">
+                    <span class="device-status-dot"></span>
+                    <span class="device-name">${deviceInfo.name}</span>
+                    ${groupBadge}
+                </div>
+                <div class="device-actions">
+                    <div class="custom-select-wrapper">
+                        <button class="custom-select-btn" data-device="${deviceId}">
+                            <span class="select-text">${group ? 'グループ ' + group : 'グループ設定'}</span>
+                            <span class="select-arrow">▼</span>
+                        </button>
+                        <div class="custom-select-dropdown">
+                            <div class="select-option" data-value="">グループなし</div>
+                            <div class="select-option" data-value="A">グループA</div>
+                            <div class="select-option" data-value="B">グループB</div>
+                            <div class="select-option" data-value="C">グループC</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-danger btn-disconnect" data-device="${deviceId}">切断</button>
+                </div>
+            `;
+
+            // カスタムセレクトのイベント
+            const selectBtn = card.querySelector('.custom-select-btn');
+            const dropdown = card.querySelector('.custom-select-dropdown');
+            const options = card.querySelectorAll('.select-option');
+
+            selectBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // 他の全てのドロップダウンを閉じる
+                document.querySelectorAll('.custom-select-dropdown.active').forEach(d => {
+                    if (d !== dropdown) d.classList.remove('active');
+                });
+                dropdown.classList.toggle('active');
+            });
+
+            options.forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const newGroup = option.dataset.value;
+                    if (newGroup) {
+                        this.deviceGroups.set(deviceId, newGroup);
+                    } else {
+                        this.deviceGroups.delete(deviceId);
+                    }
+                    dropdown.classList.remove('active');
+                    this.updateDevicesList();
+                });
+            });
+
+            // 切断ボタンイベント
+            const disconnectBtn = card.querySelector('.btn-disconnect');
+            disconnectBtn.addEventListener('click', () => this.disconnectDevice(deviceId));
+
+            this.devicesList.appendChild(card);
+        });
+
+        // ドロップダウンを閉じるためのグローバルクリックイベント（1回だけ登録）
+        if (!this.globalClickHandlerAdded) {
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.custom-select-dropdown.active').forEach(d => {
+                    d.classList.remove('active');
+                });
+            });
+            this.globalClickHandlerAdded = true;
+        }
+    }
+
+    updateIndividualButtons() {
+        this.individualButtons.innerHTML = '';
+
+        this.devices.forEach((deviceInfo, deviceId) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-individual';
+            btn.dataset.device = deviceId;
+            btn.textContent = deviceInfo.name;
+
+            if (this.selectedDevice === deviceId) {
+                btn.classList.add('active');
             }
-        } catch (error) {
-            console.error('切断エラー:', error);
+
+            btn.addEventListener('click', () => {
+                this.selectedDevice = deviceId;
+                this.updateIndividualButtons();
+            });
+
+            this.individualButtons.appendChild(btn);
+        });
+    }
+
+    updateGroupButtons() {
+        this.groupButtons.querySelectorAll('.btn-group').forEach(btn => {
+            if (btn.dataset.group === this.selectedGroup) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    // === 制御対象切り替え ===
+
+    switchControlTarget(target) {
+        this.controlTarget = target;
+
+        // ボタンの状態更新
+        [this.targetAllBtn, this.targetGroupBtn, this.targetIndividualBtn].forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        if (target === 'all') {
+            this.targetAllBtn.classList.add('active');
+            this.groupSelection.style.display = 'none';
+            this.individualSelection.style.display = 'none';
+        } else if (target === 'group') {
+            this.targetGroupBtn.classList.add('active');
+            this.groupSelection.style.display = 'block';
+            this.individualSelection.style.display = 'none';
+            if (!this.selectedGroup) {
+                this.selectedGroup = 'A';
+            }
+            this.updateGroupButtons();
+        } else if (target === 'individual') {
+            this.targetIndividualBtn.classList.add('active');
+            this.groupSelection.style.display = 'none';
+            this.individualSelection.style.display = 'block';
+            this.updateIndividualButtons();
         }
-        this.onDisconnected();
     }
 
-    onConnected() {
-        this.isConnected = true;
-        this.showStatus('接続済み', true);
-        this.connectBtn.style.display = 'none';
-        this.disconnectBtn.style.display = 'inline-block';
-        this.controlSection.style.display = 'block';
-        this.controlSection.classList.add('fade-in');
-        console.log('ペンライトに接続しました');
-    }
+    // === 制御対象デバイスの取得 ===
 
-    onDisconnected() {
-        this.isConnected = false;
-        this.isAutoMode = false;
-        this.device = null;
-        this.server = null;
-        this.service = null;
-        this.colorCharacteristic = null;
-        this.controlCharacteristic = null;
+    getTargetDevices() {
+        const targets = [];
 
-        this.showStatus('未接続', false);
-        this.connectBtn.style.display = 'inline-block';
-        this.disconnectBtn.style.display = 'none';
-        this.controlSection.style.display = 'none';
-
-        // 自動制御ボタンのリセット
-        this.startAutoBtn.style.display = 'inline-block';
-        this.stopAutoBtn.style.display = 'none';
-
-        console.log('ペンライトから切断しました');
-    }
-
-    showStatus(text, connected) {
-        this.statusText.textContent = text;
-        if (connected) {
-            this.statusDot.classList.add('connected');
-        } else {
-            this.statusDot.classList.remove('connected');
+        if (this.controlTarget === 'all') {
+            // 全デバイス
+            this.devices.forEach((deviceInfo) => {
+                targets.push(deviceInfo);
+            });
+        } else if (this.controlTarget === 'group' && this.selectedGroup) {
+            // 選択されたグループのデバイス
+            this.devices.forEach((deviceInfo, deviceId) => {
+                if (this.deviceGroups.get(deviceId) === this.selectedGroup) {
+                    targets.push(deviceInfo);
+                }
+            });
+        } else if (this.controlTarget === 'individual' && this.selectedDevice) {
+            // 選択された個別デバイス
+            const deviceInfo = this.devices.get(this.selectedDevice);
+            if (deviceInfo) {
+                targets.push(deviceInfo);
+            }
         }
+
+        return targets;
     }
 
-    showError(message) {
-        alert(message);
-    }
+    // === モード切り替え ===
 
-    // 色選択モードに切り替え
     switchToColorMode() {
-        if (this.isAutoMode) {
-            this.stopAutoMode();
-        }
         this.colorModeBtn.classList.add('active');
         this.autoModeBtn.classList.remove('active');
         this.colorMode.style.display = 'block';
         this.autoMode.style.display = 'none';
+
+        // 全デバイスの自動モードを停止
+        this.devices.forEach((deviceInfo) => {
+            if (deviceInfo.isAutoMode) {
+                this.sendCommandToDevice(deviceInfo, 'STOP');
+                deviceInfo.isAutoMode = false;
+            }
+        });
     }
 
-    // 自動制御モードに切り替え
     switchToAutoMode() {
         this.autoModeBtn.classList.add('active');
         this.colorModeBtn.classList.remove('active');
@@ -298,26 +455,27 @@ class PenlightController {
         this.colorMode.style.display = 'none';
     }
 
-    // 2Dカラーピッカーを描画
+    // === カラーピッカー ===
+
     draw2DColorPicker() {
         const canvas = this.colorPicker2D;
         const ctx = this.colorPicker2DContext;
         const width = canvas.width;
         const height = canvas.height;
 
-        // ベースカラー（現在の色相で彩度100%、明度50%）を塗りつぶす
+        // ベースカラー
         const baseColor = this.hslToRgb(this.currentHue, 100, 50);
         ctx.fillStyle = `rgb(${baseColor.r}, ${baseColor.g}, ${baseColor.b})`;
         ctx.fillRect(0, 0, width, height);
 
-        // 横方向グラデーション：彩度（左：白、右：透明）
+        // 横方向グラデーション（彩度）
         const saturationGradient = ctx.createLinearGradient(0, 0, width, 0);
         saturationGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
         saturationGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = saturationGradient;
         ctx.fillRect(0, 0, width, height);
 
-        // 縦方向グラデーション：明度（上：透明、下：黒）
+        // 縦方向グラデーション（明度）
         const lightnessGradient = ctx.createLinearGradient(0, 0, 0, height);
         lightnessGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
         lightnessGradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
@@ -325,23 +483,21 @@ class PenlightController {
         ctx.fillRect(0, 0, width, height);
     }
 
-    // カラー表示を更新
     updateColorDisplay() {
-        // 表示値を更新
         this.hueValue.textContent = `${this.currentHue}°`;
         this.saturationValue.textContent = `${Math.round(this.currentSaturation)}%`;
         this.lightnessValue.textContent = `${Math.round(this.currentLightness)}%`;
 
-        // HSLからRGBに変換
         const rgb = this.hslToRgb(this.currentHue, this.currentSaturation, this.currentLightness);
         const hexColor = this.rgbToHex(rgb.r, rgb.g, rgb.b);
 
-        // プレビューを更新
         this.colorValue.textContent = hexColor.toUpperCase();
         this.colorPreview.style.backgroundColor = hexColor;
+
+        // カーソルに現在の色を設定
+        this.colorPickerCursor.style.color = hexColor;
     }
 
-    // カーソル位置を更新
     updateCursorPosition() {
         const canvas = this.colorPicker2D;
         const rect = canvas.getBoundingClientRect();
@@ -349,7 +505,6 @@ class PenlightController {
         const x = (this.currentSaturation / 100) * canvas.width;
         const y = (1 - this.currentLightness / 100) * canvas.height;
 
-        // Canvas座標から画面座標に変換
         const screenX = rect.left + (x / canvas.width) * rect.width;
         const screenY = rect.top + (y / canvas.height) * rect.height;
 
@@ -357,30 +512,25 @@ class PenlightController {
         this.colorPickerCursor.style.top = `${screenY}px`;
     }
 
-    // 2Dピッカーでの選択開始
     startPicking(event) {
         this.isDragging = true;
         this.pickColor(event);
     }
 
-    // 2Dピッカーでの選択継続
     continuePicking(event) {
         if (this.isDragging) {
             this.pickColor(event);
         }
     }
 
-    // 2Dピッカーでの選択終了
     stopPicking() {
         this.isDragging = false;
     }
 
-    // 2Dピッカーから色を選択
     pickColor(event) {
         const canvas = this.colorPicker2D;
         const rect = canvas.getBoundingClientRect();
 
-        // クリック位置を取得
         let clientX, clientY;
         if (event.touches) {
             clientX = event.touches[0].clientX;
@@ -390,29 +540,20 @@ class PenlightController {
             clientY = event.clientY;
         }
 
-        // Canvas内の相対位置を計算
         let x = clientX - rect.left;
         let y = clientY - rect.top;
 
-        // 範囲制限
         x = Math.max(0, Math.min(x, rect.width));
         y = Math.max(0, Math.min(y, rect.height));
 
-        // 彩度と明度を計算
         this.currentSaturation = (x / rect.width) * 100;
         this.currentLightness = 100 - (y / rect.height) * 100;
 
-        // 表示を更新
         this.updateColorDisplay();
         this.updateCursorPosition();
-
-        // Bluetooth送信（デバウンス）
-        if (this.isConnected) {
-            this.debouncedApplyColor();
-        }
+        this.debouncedApplyColor();
     }
 
-    // Hex色から設定
     setColorFromHex(hexColor) {
         const rgb = this.hexToRgb(hexColor);
         if (!rgb) return;
@@ -429,118 +570,119 @@ class PenlightController {
         this.updateCursorPosition();
     }
 
-    // 色適用（デバウンス付き）
     debouncedApplyColor() {
-        // 既存のタイマーをクリア
         if (this.colorSendTimer) {
             clearTimeout(this.colorSendTimer);
         }
 
-        // 新しいタイマーを設定
         this.colorSendTimer = setTimeout(() => {
             this.applyCurrentColor();
         }, this.colorSendDelay);
     }
 
-    // 現在の色を適用
     async applyCurrentColor() {
-        if (!this.isConnected) {
-            this.showError('ペンライトに接続してください');
+        const targets = this.getTargetDevices();
+        if (targets.length === 0) {
             return;
         }
 
-        try {
-            const rgb = this.hslToRgb(this.currentHue, this.currentSaturation, this.currentLightness);
-            await this.sendColor(rgb.r, rgb.g, rgb.b);
-            console.log(`色を適用しました: RGB(${rgb.r}, ${rgb.g}, ${rgb.b})`);
-        } catch (error) {
-            console.error('色の送信エラー:', error);
-            // エラーメッセージは表示しない（連続送信時にアラートが煩わしいため）
-            console.warn('色の送信に失敗しましたが、次の送信を試みます');
-        }
-    }
+        const rgb = this.hslToRgb(this.currentHue, this.currentSaturation, this.currentLightness);
 
-    // 自動制御開始
-    async startAutoMode() {
-        if (!this.isConnected) {
-            this.showError('ペンライトに接続してください');
-            return;
-        }
-
-        try {
-            const selectedPattern = document.querySelector('input[name="pattern"]:checked').value;
-            await this.sendCommand(`AUTO:${selectedPattern}`);
-
-            this.isAutoMode = true;
-            this.startAutoBtn.style.display = 'none';
-            this.stopAutoBtn.style.display = 'inline-block';
-
-            console.log(`自動制御を開始しました (パターン${selectedPattern})`);
-        } catch (error) {
-            console.error('自動制御開始エラー:', error);
-            this.showError('自動制御の開始に失敗しました');
-        }
-    }
-
-    // 自動制御停止
-    async stopAutoMode() {
-        if (!this.isConnected) return;
-
-        try {
-            await this.sendCommand('STOP');
-
-            this.isAutoMode = false;
-            this.stopAutoBtn.style.display = 'none';
-            this.startAutoBtn.style.display = 'inline-block';
-
-            console.log('自動制御を停止しました');
-        } catch (error) {
-            console.error('自動制御停止エラー:', error);
-            this.showError('自動制御の停止に失敗しました');
-        }
-    }
-
-    // 全消灯
-    async clearLeds() {
-        if (!this.isConnected) {
-            this.showError('ペンライトに接続してください');
-            return;
-        }
-
-        try {
-            if (this.isAutoMode) {
-                await this.stopAutoMode();
+        for (const deviceInfo of targets) {
+            try {
+                await this.sendColorToDevice(deviceInfo, rgb.r, rgb.g, rgb.b);
+                console.log(`${deviceInfo.name}: RGB(${rgb.r}, ${rgb.g}, ${rgb.b})`);
+            } catch (error) {
+                console.error(`${deviceInfo.name} への送信エラー:`, error);
             }
-            await this.sendCommand('CLEAR');
-            console.log('LEDを消灯しました');
-        } catch (error) {
-            console.error('消灯エラー:', error);
-            this.showError('消灯に失敗しました');
         }
     }
 
-    // 色データの送信
-    async sendColor(r, g, b) {
-        if (!this.colorCharacteristic) {
+    // === 自動制御 ===
+
+    async startAutoMode() {
+        const targets = this.getTargetDevices();
+        if (targets.length === 0) {
+            this.showError('制御対象のデバイスがありません');
+            return;
+        }
+
+        const selectedPattern = document.querySelector('input[name="pattern"]:checked').value;
+
+        for (const deviceInfo of targets) {
+            try {
+                await this.sendCommandToDevice(deviceInfo, `AUTO:${selectedPattern}`);
+                deviceInfo.isAutoMode = true;
+                console.log(`${deviceInfo.name}: 自動制御開始 (パターン${selectedPattern})`);
+            } catch (error) {
+                console.error(`${deviceInfo.name} への送信エラー:`, error);
+            }
+        }
+
+        this.startAutoBtn.style.display = 'none';
+        this.stopAutoBtn.style.display = 'inline-block';
+    }
+
+    async stopAutoMode() {
+        const targets = this.getTargetDevices();
+
+        for (const deviceInfo of targets) {
+            try {
+                await this.sendCommandToDevice(deviceInfo, 'STOP');
+                deviceInfo.isAutoMode = false;
+                console.log(`${deviceInfo.name}: 自動制御停止`);
+            } catch (error) {
+                console.error(`${deviceInfo.name} への送信エラー:`, error);
+            }
+        }
+
+        this.stopAutoBtn.style.display = 'none';
+        this.startAutoBtn.style.display = 'inline-block';
+    }
+
+    async clearLeds() {
+        const targets = this.getTargetDevices();
+        if (targets.length === 0) {
+            return;
+        }
+
+        for (const deviceInfo of targets) {
+            try {
+                if (deviceInfo.isAutoMode) {
+                    await this.sendCommandToDevice(deviceInfo, 'STOP');
+                    deviceInfo.isAutoMode = false;
+                }
+                await this.sendCommandToDevice(deviceInfo, 'CLEAR');
+                console.log(`${deviceInfo.name}: 消灯`);
+            } catch (error) {
+                console.error(`${deviceInfo.name} への送信エラー:`, error);
+            }
+        }
+    }
+
+    // === Bluetooth送信 ===
+
+    async sendColorToDevice(deviceInfo, r, g, b) {
+        if (!deviceInfo.colorCharacteristic) {
             throw new Error('色制御キャラクタリスティックが利用できません');
         }
 
         const colorData = new Uint8Array([r, g, b]);
-        await this.colorCharacteristic.writeValue(colorData);
+        await deviceInfo.colorCharacteristic.writeValue(colorData);
     }
 
-    // コマンドの送信
-    async sendCommand(command) {
-        if (!this.controlCharacteristic) {
+    async sendCommandToDevice(deviceInfo, command) {
+        if (!deviceInfo.controlCharacteristic) {
             throw new Error('制御キャラクタリスティックが利用できません');
         }
 
         const encoder = new TextEncoder();
         const commandData = encoder.encode(command);
-        await this.controlCharacteristic.writeValue(commandData);
+        await deviceInfo.controlCharacteristic.writeValue(commandData);
     }
 
-    // Hex色をRGBに変換
+    // === 色変換関数 ===
+
     hexToRgb(hex) {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? {
@@ -550,7 +692,6 @@ class PenlightController {
         } : null;
     }
 
-    // RGBをHex色に変換
     rgbToHex(r, g, b) {
         const toHex = (n) => {
             const hex = Math.round(n).toString(16);
@@ -559,7 +700,6 @@ class PenlightController {
         return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
     }
 
-    // HSL(H: 0-360, S: 0-100, L: 0-100)をRGB(0-255)に変換
     hslToRgb(h, s, l) {
         h = h / 360;
         s = s / 100;
@@ -568,7 +708,7 @@ class PenlightController {
         let r, g, b;
 
         if (s === 0) {
-            r = g = b = l; // 彩度0の場合はグレースケール
+            r = g = b = l;
         } else {
             const hue2rgb = (p, q, t) => {
                 if (t < 0) t += 1;
@@ -594,7 +734,6 @@ class PenlightController {
         };
     }
 
-    // RGB(0-255)をHSL(H: 0-360, S: 0-100, L: 0-100)に変換
     rgbToHsl(r, g, b) {
         r /= 255;
         g /= 255;
@@ -605,7 +744,7 @@ class PenlightController {
         let h, s, l = (max + min) / 2;
 
         if (max === min) {
-            h = s = 0; // 無彩色
+            h = s = 0;
         } else {
             const d = max - min;
             s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
@@ -623,11 +762,17 @@ class PenlightController {
             l: Math.round(l * 100)
         };
     }
+
+    // === ユーティリティ ===
+
+    showError(message) {
+        alert(message);
+    }
 }
 
 // アプリケーションの初期化
 document.addEventListener('DOMContentLoaded', () => {
-    new PenlightController();
+    new MultiPenlightController();
 });
 
 // サービスワーカーの登録（PWA対応）

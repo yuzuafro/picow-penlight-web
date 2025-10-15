@@ -1,0 +1,5 @@
+# ローカル開発用ファイル（デプロイ不要）
+server.py
+*.pem
+key.pem
+cert.pem
