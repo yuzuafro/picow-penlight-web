@@ -61,7 +61,6 @@ class MultiPenlightController {
 
         // 2Dカラーピッカー
         this.colorPicker2D = document.getElementById('colorPicker2D');
-        this.colorPickerCursor = document.getElementById('colorPickerCursor');
         this.colorPicker2DContext = this.colorPicker2D.getContext('2d');
         this.isDragging = false;
 
@@ -79,7 +78,6 @@ class MultiPenlightController {
         // 初期化
         this.draw2DColorPicker();
         this.updateColorDisplay();
-        this.updateCursorPosition();
     }
 
     bindEvents() {
@@ -149,7 +147,10 @@ class MultiPenlightController {
         if (!navigator.bluetooth) {
             this.showError('このブラウザはWeb Bluetooth APIをサポートしていません。Chrome、Edge、またはOperaをお使いください。');
             this.connectBtn.disabled = true;
+            return false;
         }
+        console.log('Web Bluetooth API サポート: OK');
+        return true;
     }
 
     // === デバイス接続管理 ===
@@ -157,22 +158,26 @@ class MultiPenlightController {
     async connect() {
         try {
             this.connectBtn.classList.add('loading');
+            console.log('Bluetooth接続を開始します...');
+            console.log('検索条件: namePrefix="Penlight-"');
 
-            // デバイスの検索
+            // デバイスの検索（旧形式"Penlight"と新形式"Penlight-X"の両方に対応）
             const device = await navigator.bluetooth.requestDevice({
-                filters: [{ namePrefix: 'Penlight-' }],
+                filters: [
+                    { namePrefix: 'Penlight-' },
+                    { name: 'Penlight' }
+                ],
                 optionalServices: [this.SERVICE_UUID]
             });
 
             const deviceId = this.extractDeviceId(device.name);
+            console.log('デバイスが選択されました:', device.name, 'ID:', deviceId);
 
             // 既に接続されているかチェック
             if (this.devices.has(deviceId)) {
                 this.showError('このデバイスは既に接続されています');
                 return;
             }
-
-            console.log('デバイスが選択されました:', device.name);
 
             // 切断イベントの監視
             device.addEventListener('gattserverdisconnected', () => {
@@ -198,8 +203,12 @@ class MultiPenlightController {
                 isAutoMode: false
             });
 
+            // 接続時に初期色（赤）を送信
+            const deviceInfo = this.devices.get(deviceId);
+            await this.sendColorToDevice(deviceInfo, 255, 0, 0);
+
             this.onDeviceConnected(deviceId);
-            console.log(`デバイス ${device.name} に接続しました`);
+            console.log(`デバイス ${device.name} に接続しました (初期色: 赤)`);
         } catch (error) {
             console.error('接続エラー:', error);
             if (error.name !== 'NotFoundError') {
@@ -223,8 +232,16 @@ class MultiPenlightController {
     }
 
     extractDeviceId(deviceName) {
+        // "Penlight-1" -> "1"
         const match = deviceName.match(/Penlight-(\d+)/);
-        return match ? match[1] : deviceName;
+        if (match) {
+            return match[1];
+        }
+        // "Penlight" -> "default"（旧形式の場合）
+        if (deviceName === 'Penlight') {
+            return 'default';
+        }
+        return deviceName;
     }
 
     onDeviceConnected(deviceId) {
@@ -296,6 +313,7 @@ class MultiPenlightController {
             `;
 
             // カスタムセレクトのイベント
+            const selectWrapper = card.querySelector('.custom-select-wrapper');
             const selectBtn = card.querySelector('.custom-select-btn');
             const dropdown = card.querySelector('.custom-select-dropdown');
             const options = card.querySelectorAll('.select-option');
@@ -303,9 +321,14 @@ class MultiPenlightController {
             selectBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 // 他の全てのドロップダウンを閉じる
-                document.querySelectorAll('.custom-select-dropdown.active').forEach(d => {
-                    if (d !== dropdown) d.classList.remove('active');
+                document.querySelectorAll('.custom-select-wrapper.active').forEach(w => {
+                    if (w !== selectWrapper) {
+                        w.classList.remove('active');
+                        w.querySelector('.custom-select-dropdown').classList.remove('active');
+                    }
                 });
+                // 現在のドロップダウンをトグル
+                selectWrapper.classList.toggle('active');
                 dropdown.classList.toggle('active');
             });
 
@@ -318,6 +341,7 @@ class MultiPenlightController {
                     } else {
                         this.deviceGroups.delete(deviceId);
                     }
+                    selectWrapper.classList.remove('active');
                     dropdown.classList.remove('active');
                     this.updateDevicesList();
                 });
@@ -333,8 +357,9 @@ class MultiPenlightController {
         // ドロップダウンを閉じるためのグローバルクリックイベント（1回だけ登録）
         if (!this.globalClickHandlerAdded) {
             document.addEventListener('click', () => {
-                document.querySelectorAll('.custom-select-dropdown.active').forEach(d => {
-                    d.classList.remove('active');
+                document.querySelectorAll('.custom-select-wrapper.active').forEach(w => {
+                    w.classList.remove('active');
+                    w.querySelector('.custom-select-dropdown').classList.remove('active');
                 });
             });
             this.globalClickHandlerAdded = true;
@@ -493,23 +518,6 @@ class MultiPenlightController {
 
         this.colorValue.textContent = hexColor.toUpperCase();
         this.colorPreview.style.backgroundColor = hexColor;
-
-        // カーソルに現在の色を設定
-        this.colorPickerCursor.style.color = hexColor;
-    }
-
-    updateCursorPosition() {
-        const canvas = this.colorPicker2D;
-        const rect = canvas.getBoundingClientRect();
-
-        const x = (this.currentSaturation / 100) * canvas.width;
-        const y = (1 - this.currentLightness / 100) * canvas.height;
-
-        const screenX = rect.left + (x / canvas.width) * rect.width;
-        const screenY = rect.top + (y / canvas.height) * rect.height;
-
-        this.colorPickerCursor.style.left = `${screenX}px`;
-        this.colorPickerCursor.style.top = `${screenY}px`;
     }
 
     startPicking(event) {
@@ -550,7 +558,6 @@ class MultiPenlightController {
         this.currentLightness = 100 - (y / rect.height) * 100;
 
         this.updateColorDisplay();
-        this.updateCursorPosition();
         this.debouncedApplyColor();
     }
 
@@ -567,7 +574,6 @@ class MultiPenlightController {
         this.hueSlider.value = this.currentHue;
         this.draw2DColorPicker();
         this.updateColorDisplay();
-        this.updateCursorPosition();
     }
 
     debouncedApplyColor() {
@@ -774,15 +780,3 @@ class MultiPenlightController {
 document.addEventListener('DOMContentLoaded', () => {
     new MultiPenlightController();
 });
-
-// サービスワーカーの登録（PWA対応）
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-        try {
-            const registration = await navigator.serviceWorker.register('/sw.js');
-            console.log('Service Worker registered:', registration);
-        } catch (error) {
-            console.log('Service Worker registration failed:', error);
-        }
-    });
-}

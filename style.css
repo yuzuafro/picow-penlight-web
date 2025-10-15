@@ -179,85 +179,143 @@ section h4 {
 .custom-select-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    background: white;
+    gap: 10px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
     border: 2px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 0.85rem;
-    color: #4a5568;
+    color: #2d3748;
     cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 120px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 130px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.custom-select-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
 }
 
 .custom-select-btn:hover {
-    background: #f7fafc;
     border-color: #cbd5e0;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    transform: translateY(-1px);
+}
+
+.custom-select-btn:hover::before {
+    opacity: 1;
 }
 
 .custom-select-btn:active {
-    transform: scale(0.98);
+    transform: translateY(0) scale(0.98);
 }
 
 .select-text {
     flex: 1;
     text-align: left;
-    font-weight: 500;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
 }
 
 .select-arrow {
-    font-size: 0.7rem;
-    transition: transform 0.2s ease;
+    font-size: 0.75rem;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     color: #667eea;
+    font-weight: bold;
+    position: relative;
+    z-index: 1;
 }
 
 .custom-select-btn:hover .select-arrow {
     color: #5a67d8;
 }
 
-.custom-select-dropdown.active .select-arrow {
+.custom-select-wrapper.active .select-arrow {
     transform: rotate(180deg);
 }
 
 .custom-select-dropdown {
     position: absolute;
-    top: calc(100% + 4px);
+    top: calc(100% + 8px);
     left: 0;
     min-width: 100%;
     background: white;
     border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
     z-index: 1000;
     overflow: hidden;
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-15px) scale(0.95);
     pointer-events: none;
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
 }
 
 .custom-select-dropdown.active {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     pointer-events: auto;
 }
 
 .select-option {
-    padding: 10px 12px;
+    padding: 12px 14px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s ease;
     font-size: 0.85rem;
-    color: #4a5568;
+    color: #2d3748;
+    font-weight: 500;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.select-option::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: height 0.2s ease;
+    border-radius: 0 2px 2px 0;
 }
 
 .select-option:hover {
-    background: #edf2f7;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
     color: #667eea;
+    padding-left: 18px;
+}
+
+.select-option:hover::before {
+    height: 60%;
 }
 
 .select-option:active {
-    background: #e2e8f0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%);
+    transform: scale(0.98);
+}
+
+.select-option:first-child {
+    border-radius: 10px 10px 0 0;
+}
+
+.select-option:last-child {
+    border-radius: 0 0 10px 10px;
 }
 
 /* 制御対象選択 */
@@ -602,37 +660,6 @@ section h4 {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     touch-action: none;
     user-select: none;
-}
-
-.color-picker-cursor {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    border: 3px solid white;
-    border-radius: 50%;
-    pointer-events: none;
-    box-shadow:
-        0 0 0 1px rgba(0, 0, 0, 0.3),
-        0 2px 8px rgba(0, 0, 0, 0.4),
-        0 0 0 2px rgba(102, 126, 234, 0.5);
-    transform: translate(-50%, -50%);
-    transition: all 0.1s ease;
-    background: white;
-    z-index: 10;
-}
-
-.color-picker-cursor::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: currentColor;
-    border: 2px solid white;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 }
 
 /* 彩度・明度の値表示 */
