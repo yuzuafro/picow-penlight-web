@@ -806,34 +806,292 @@ footer {
 }
 
 /* レスポンシブ */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .container {
-        padding: 15px;
+        padding: 10px;
     }
 
     main {
         padding: 20px;
+        border-radius: 15px;
     }
 
     header h1 {
         font-size: 2rem;
     }
 
+    header p {
+        font-size: 1rem;
+    }
+
+    section h2 {
+        font-size: 1.3rem;
+    }
+
+    section h3 {
+        font-size: 1.1rem;
+    }
+
+    /* デバイスカード */
+    .device-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .device-info {
+        width: 100%;
+    }
+
+    .device-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    /* 制御対象ボタン */
+    .target-buttons {
+        gap: 8px;
+    }
+
+    .btn-target {
+        font-size: 0.85rem;
+        padding: 10px 12px;
+        min-width: auto;
+    }
+
+    /* カラープレビュー */
+    .color-preview-main {
+        height: 120px;
+    }
+
+    #colorValue {
+        font-size: 1.5rem;
+        letter-spacing: 1px;
+    }
+
+    /* カスタムカラーピッカー */
+    .custom-color-picker {
+        padding: 15px;
+    }
+
+    .slider-label {
+        font-size: 1rem;
+    }
+
+    .slider-value {
+        font-size: 0.9rem;
+        min-width: 50px;
+    }
+
+    /* 2Dカラーピッカー */
+    #colorPicker2D {
+        height: 180px;
+    }
+
+    /* プリセット色 */
+    .preset-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+    }
+
+    .preset-color {
+        width: 100%;
+        height: 0;
+        padding-bottom: 100%;
+        position: relative;
+    }
+
+    /* ボタン */
+    .btn {
+        min-width: auto;
+    }
+
+    .btn-primary {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    .container {
+        padding: 8px;
+    }
+
+    main {
+        padding: 15px;
+    }
+
+    header {
+        margin-bottom: 20px;
+    }
+
+    header h1 {
+        font-size: 1.75rem;
+    }
+
+    header p {
+        font-size: 0.9rem;
+    }
+
+    section {
+        margin-bottom: 20px;
+    }
+
+    section h2 {
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+    }
+
+    /* 接続状態 */
+    .status-summary {
+        padding: 12px;
+        font-size: 1rem;
+    }
+
+    .device-count strong {
+        font-size: 1.2rem;
+    }
+
+    /* デバイスカード */
+    .device-card {
+        padding: 12px;
+    }
+
+    .device-name {
+        font-size: 0.9rem;
+    }
+
+    .device-group {
+        font-size: 0.75rem;
+        padding: 3px 8px;
+    }
+
+    .device-actions button {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+
+    .custom-select-btn {
+        padding: 6px 10px;
+        min-width: 100px;
+        font-size: 0.8rem;
+    }
+
+    /* 制御対象選択 */
+    .target-selection {
+        padding: 15px;
+    }
+
+    .target-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .btn-target {
+        width: 100%;
+        padding: 12px;
+    }
+
+    .selection-panel {
+        padding: 12px;
+    }
+
+    /* モード切り替え */
     .mode-buttons {
         flex-direction: column;
+        gap: 8px;
     }
 
-    .color-picker-container {
-        flex-direction: column;
-        text-align: center;
+    .btn-mode {
+        width: 100%;
     }
 
+    /* カラープレビュー */
+    .color-preview-main {
+        height: 100px;
+    }
+
+    #colorValue {
+        font-size: 1.3rem;
+    }
+
+    /* カスタムカラーピッカー */
+    .custom-color-picker {
+        padding: 12px;
+    }
+
+    .slider-group {
+        margin-bottom: 20px;
+    }
+
+    .slider-label {
+        font-size: 0.95rem;
+    }
+
+    .slider-value {
+        font-size: 0.85rem;
+    }
+
+    /* 2Dカラーピッカー */
+    #colorPicker2D {
+        height: 150px;
+    }
+
+    .color-values-display {
+        padding: 10px;
+    }
+
+    .value-label {
+        font-size: 0.85rem;
+    }
+
+    .value-number {
+        font-size: 0.9rem;
+        min-width: 45px;
+    }
+
+    /* プリセット色 */
     .preset-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+    }
+
+    /* 自動制御 */
+    .pattern-option {
+        padding: 12px;
+    }
+
+    .pattern-name {
+        font-size: 0.95rem;
+    }
+
+    .pattern-desc {
+        font-size: 0.8rem;
     }
 
     .auto-controls {
         flex-direction: column;
+        gap: 10px;
+    }
+
+    .auto-controls .btn {
+        width: 100%;
+    }
+
+    /* ボタン */
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        min-width: auto;
+    }
+
+    /* フッター */
+    footer {
+        margin-top: 20px;
+        font-size: 0.9rem;
     }
 }
 
