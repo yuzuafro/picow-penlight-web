@@ -328,7 +328,7 @@ section h4 {
 
 .target-buttons {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 15px;
 }
 
@@ -337,6 +337,11 @@ section h4 {
     background: white;
     color: #4a5568;
     border: 2px solid #e2e8f0;
+    padding: 10px 8px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-target.active {
@@ -850,12 +855,12 @@ footer {
 
     /* 制御対象ボタン */
     .target-buttons {
-        gap: 8px;
+        gap: 6px;
     }
 
     .btn-target {
         font-size: 0.85rem;
-        padding: 10px 12px;
+        padding: 10px 6px;
         min-width: auto;
     }
 
@@ -982,17 +987,16 @@ footer {
 
     /* 制御対象選択 */
     .target-selection {
-        padding: 15px;
+        padding: 12px;
     }
 
     .target-buttons {
-        flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
 
     .btn-target {
-        width: 100%;
-        padding: 12px;
+        padding: 10px 4px;
+        font-size: 0.8rem;
     }
 
     .selection-panel {
@@ -1092,6 +1096,72 @@ footer {
     footer {
         margin-top: 20px;
         font-size: 0.9rem;
+    }
+}
+
+/* 超小型スマートフォン対応 */
+@media (max-width: 360px) {
+    body {
+        font-size: 13px;
+    }
+
+    .container {
+        padding: 5px;
+    }
+
+    main {
+        padding: 12px;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    /* 制御対象ボタン - より小さく */
+    .target-buttons {
+        gap: 4px;
+    }
+
+    .btn-target {
+        padding: 8px 2px;
+        font-size: 0.75rem;
+        min-width: 0;
+    }
+
+    /* ボタン全般を小さく */
+    .btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    /* デバイスカード */
+    .device-card {
+        padding: 10px;
+    }
+
+    .device-actions button {
+        padding: 5px 8px;
+        font-size: 0.75rem;
+    }
+
+    .custom-select-btn {
+        padding: 5px 8px;
+        min-width: 90px;
+        font-size: 0.75rem;
+    }
+
+    /* カラープレビュー */
+    .color-preview-main {
+        height: 80px;
+    }
+
+    #colorValue {
+        font-size: 1.1rem;
+    }
+
+    /* 2Dカラーピッカー */
+    #colorPicker2D {
+        height: 130px;
     }
 }
 
