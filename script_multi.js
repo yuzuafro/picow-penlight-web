@@ -1,4 +1,4 @@
-class MultiPenlightController {
+class MultiColorlightController {
     constructor() {
         // 複数デバイス管理
         this.devices = new Map(); // デバイスID -> デバイス情報のマップ
@@ -165,13 +165,13 @@ class MultiPenlightController {
         try {
             this.connectBtn.classList.add('loading');
             console.log('Bluetooth接続を開始します...');
-            console.log('検索条件: namePrefix="Penlight-"');
+            console.log('検索条件: namePrefix="Colorlight-"');
 
-            // デバイスの検索（旧形式"Penlight"と新形式"Penlight-X"の両方に対応）
+            // デバイスの検索（旧形式"Colorlight"と新形式"Colorlight-X"の両方に対応）
             const device = await navigator.bluetooth.requestDevice({
                 filters: [
-                    { namePrefix: 'Penlight-' },
-                    { name: 'Penlight' }
+                    { namePrefix: 'Colorlight-' },
+                    { name: 'Colorlight' }
                 ],
                 optionalServices: [this.SERVICE_UUID]
             });
@@ -238,13 +238,13 @@ class MultiPenlightController {
     }
 
     extractDeviceId(deviceName) {
-        // "Penlight-1" -> "1"
-        const match = deviceName.match(/Penlight-(\d+)/);
+        // "Colorlight-1" -> "1"
+        const match = deviceName.match(/Colorlight-(\d+)/);
         if (match) {
             return match[1];
         }
-        // "Penlight" -> "default"（旧形式の場合）
-        if (deviceName === 'Penlight') {
+        // "Colorlight" -> "default"（旧形式の場合）
+        if (deviceName === 'Colorlight') {
             return 'default';
         }
         return deviceName;
@@ -722,5 +722,5 @@ class MultiPenlightController {
 
 // アプリケーションの初期化
 document.addEventListener('DOMContentLoaded', () => {
-    new MultiPenlightController();
+    new MultiColorlightController();
 });

@@ -1,7 +1,7 @@
 {
   "name": "Pico Colorlight Controller",
-  "short_name": "Penlight",
-  "description": "Raspberry Pi Pico W ペンライトコントローラー",
+  "short_name": "Colorlight",
+  "description": "Raspberry Pi Pico Colorlight Controller",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1a1a2e",

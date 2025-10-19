@@ -1,4 +1,4 @@
-class PenlightController {
+class ColorlightController {
     constructor() {
         // 複数デバイス管理
         this.devices = new Map(); // デバイスID -> デバイス情報のマップ
@@ -160,9 +160,9 @@ class PenlightController {
         try {
             this.connectBtn.classList.add('loading');
 
-            // デバイスの検索（Penlight-で始まる全デバイス）
+            // デバイスの検索（Colorlight-で始まる全デバイス）
             const device = await navigator.bluetooth.requestDevice({
-                filters: [{ namePrefix: 'Penlight-' }],
+                filters: [{ namePrefix: 'Colorlight-' }],
                 optionalServices: [this.SERVICE_UUID]
             });
 
@@ -219,8 +219,8 @@ class PenlightController {
     }
 
     extractDeviceId(deviceName) {
-        // "Penlight-1" から "1" を抽出
-        const match = deviceName.match(/Penlight-(\d+)/);
+        // "Colorlight-1" から "1" を抽出
+        const match = deviceName.match(/Colorlight-(\d+)/);
         return match ? match[1] : deviceName;
     }
 
@@ -627,7 +627,7 @@ class PenlightController {
 
 // アプリケーションの初期化
 document.addEventListener('DOMContentLoaded', () => {
-    new PenlightController();
+    new ColorlightController();
 });
 
 // サービスワーカーの登録（PWA対応）
