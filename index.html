@@ -3,13 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pico W colorlight controller</title>
+    <title>Pico colorlight controller</title>
+
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="Raspberry Pi Pico W ペンライトコントローラー">
+
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192x192.png">
+
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🌈 Pico W colorlight controller 🌈</h1>
+            <h1>🌈Pico colorlight controller🌈</h1>
         </header>
 
         <main>
@@ -125,5 +138,20 @@
     </div>
 
     <script src="./script_multi.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then((registration) => {
+                        console.log('Service Worker 登録成功:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.error('Service Worker 登録失敗:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
