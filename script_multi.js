@@ -23,6 +23,9 @@ class MultiPenlightController {
         this.currentSaturation = 100;
         this.currentLightness = 50;
 
+        // カラーコード入力フィールドのフォーカス状態
+        this.colorInputFocused = false;
+
         this.initializeElements();
         this.bindEvents();
         this.checkBluetoothSupport();
@@ -53,16 +56,8 @@ class MultiPenlightController {
 
         // カラーピッカー
         this.hueSlider = document.getElementById('hueSlider');
-        this.hueValue = document.getElementById('hueValue');
-        this.saturationValue = document.getElementById('saturationValue');
-        this.lightnessValue = document.getElementById('lightnessValue');
         this.colorValue = document.getElementById('colorValue');
         this.colorPreview = document.getElementById('colorPreview');
-
-        // 2Dカラーピッカー
-        this.colorPicker2D = document.getElementById('colorPicker2D');
-        this.colorPicker2DContext = this.colorPicker2D.getContext('2d');
-        this.isDragging = false;
 
         // プリセット色
         this.presetColors = document.querySelectorAll('.preset-color');
@@ -76,7 +71,6 @@ class MultiPenlightController {
         this.clearBtn = document.getElementById('clearBtn');
 
         // 初期化
-        this.draw2DColorPicker();
         this.updateColorDisplay();
     }
 
@@ -104,27 +98,39 @@ class MultiPenlightController {
         // 色相スライダー
         this.hueSlider.addEventListener('input', () => {
             this.currentHue = parseInt(this.hueSlider.value);
-            this.draw2DColorPicker();
             this.updateColorDisplay();
             this.debouncedApplyColor();
         });
 
-        // 2Dカラーピッカーのイベント
-        this.colorPicker2D.addEventListener('mousedown', (e) => this.startPicking(e));
-        this.colorPicker2D.addEventListener('mousemove', (e) => this.continuePicking(e));
-        this.colorPicker2D.addEventListener('mouseup', () => this.stopPicking());
-        this.colorPicker2D.addEventListener('mouseleave', () => this.stopPicking());
+        // カラーコード入力欄
+        this.colorValue.addEventListener('focus', () => {
+            // フォーカス時は自動更新を一時停止
+            this.colorInputFocused = true;
+        });
 
-        // タッチイベント対応
-        this.colorPicker2D.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.startPicking(e.touches[0]);
+        this.colorValue.addEventListener('blur', () => {
+            // フォーカスアウト時に自動更新を再開
+            this.colorInputFocused = false;
         });
-        this.colorPicker2D.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            this.continuePicking(e.touches[0]);
+
+        this.colorValue.addEventListener('change', (e) => {
+            const hexColor = e.target.value.trim().toUpperCase();
+            if (this.isValidHexColor(hexColor)) {
+                // #を追加（なければ）
+                const normalizedHex = hexColor.startsWith('#') ? hexColor : '#' + hexColor;
+                this.setColorFromHex(normalizedHex);
+                this.applyCurrentColor();
+            } else {
+                // 無効な値の場合は現在の色に戻す
+                this.updateColorDisplay();
+            }
         });
-        this.colorPicker2D.addEventListener('touchend', () => this.stopPicking());
+
+        this.colorValue.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.target.blur(); // Enterキーでフォーカスを外してchangeイベントを発火
+            }
+        });
 
         // プリセット色
         this.presetColors.forEach(btn => {
@@ -482,83 +488,15 @@ class MultiPenlightController {
 
     // === カラーピッカー ===
 
-    draw2DColorPicker() {
-        const canvas = this.colorPicker2D;
-        const ctx = this.colorPicker2DContext;
-        const width = canvas.width;
-        const height = canvas.height;
-
-        // ベースカラー
-        const baseColor = this.hslToRgb(this.currentHue, 100, 50);
-        ctx.fillStyle = `rgb(${baseColor.r}, ${baseColor.g}, ${baseColor.b})`;
-        ctx.fillRect(0, 0, width, height);
-
-        // 横方向グラデーション（彩度）
-        const saturationGradient = ctx.createLinearGradient(0, 0, width, 0);
-        saturationGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-        saturationGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = saturationGradient;
-        ctx.fillRect(0, 0, width, height);
-
-        // 縦方向グラデーション（明度）
-        const lightnessGradient = ctx.createLinearGradient(0, 0, 0, height);
-        lightnessGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        lightnessGradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
-        ctx.fillStyle = lightnessGradient;
-        ctx.fillRect(0, 0, width, height);
-    }
-
     updateColorDisplay() {
-        this.hueValue.textContent = `${this.currentHue}°`;
-        this.saturationValue.textContent = `${Math.round(this.currentSaturation)}%`;
-        this.lightnessValue.textContent = `${Math.round(this.currentLightness)}%`;
-
         const rgb = this.hslToRgb(this.currentHue, this.currentSaturation, this.currentLightness);
         const hexColor = this.rgbToHex(rgb.r, rgb.g, rgb.b);
 
-        this.colorValue.textContent = hexColor.toUpperCase();
+        // 入力フィールドがフォーカスされていない場合のみ更新
+        if (!this.colorInputFocused) {
+            this.colorValue.value = hexColor.toUpperCase();
+        }
         this.colorPreview.style.backgroundColor = hexColor;
-    }
-
-    startPicking(event) {
-        this.isDragging = true;
-        this.pickColor(event);
-    }
-
-    continuePicking(event) {
-        if (this.isDragging) {
-            this.pickColor(event);
-        }
-    }
-
-    stopPicking() {
-        this.isDragging = false;
-    }
-
-    pickColor(event) {
-        const canvas = this.colorPicker2D;
-        const rect = canvas.getBoundingClientRect();
-
-        let clientX, clientY;
-        if (event.touches) {
-            clientX = event.touches[0].clientX;
-            clientY = event.touches[0].clientY;
-        } else {
-            clientX = event.clientX;
-            clientY = event.clientY;
-        }
-
-        let x = clientX - rect.left;
-        let y = clientY - rect.top;
-
-        x = Math.max(0, Math.min(x, rect.width));
-        y = Math.max(0, Math.min(y, rect.height));
-
-        this.currentSaturation = (x / rect.width) * 100;
-        this.currentLightness = 100 - (y / rect.height) * 100;
-
-        this.updateColorDisplay();
-        this.debouncedApplyColor();
     }
 
     setColorFromHex(hexColor) {
@@ -571,8 +509,10 @@ class MultiPenlightController {
         this.currentSaturation = Math.round(hsl.s);
         this.currentLightness = Math.round(hsl.l);
 
+        // 色相スライダーの値を更新
         this.hueSlider.value = this.currentHue;
-        this.draw2DColorPicker();
+
+        // 表示を更新
         this.updateColorDisplay();
     }
 
@@ -688,6 +628,10 @@ class MultiPenlightController {
     }
 
     // === 色変換関数 ===
+
+    isValidHexColor(hex) {
+        return /^#?[0-9A-Fa-f]{6}$/i.test(hex);
+    }
 
     hexToRgb(hex) {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);

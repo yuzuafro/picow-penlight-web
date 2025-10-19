@@ -3,28 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ペンライトコントローラー</title>
+    <title>Pico W colorlight controller</title>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎭 ペンライトコントローラー</h1>
-            <p>Web Bluetooth APIでペンライトを制御</p>
+            <h1>🌈 Pico W colorlight controller 🌈</h1>
         </header>
 
         <main>
             <!-- 接続状態 -->
             <section class="connection-section">
-                <div class="status-summary">
+                <div class="connection-header">
                     <span class="device-count">接続済み: <strong id="connectedCount">0</strong>台</span>
+                    <button id="connectBtn" class="btn btn-primary">ライトを追加</button>
                 </div>
-                <button id="connectBtn" class="btn btn-primary">ペンライトを追加</button>
             </section>
 
             <!-- 接続済みデバイス一覧 -->
             <section class="devices-section" id="devicesSection" style="display: none;">
-                <h2>接続済みデバイス</h2>
                 <div id="devicesList" class="devices-list"></div>
             </section>
 
@@ -67,42 +65,15 @@
 
                 <!-- 色選択モード -->
                 <div class="color-mode" id="colorMode">
-                    <h3>色を選択</h3>
-
                     <!-- カラープレビュー（大きく表示） -->
                     <div class="color-preview-main" id="colorPreview"></div>
                     <div class="color-value-display">
-                        <span id="colorValue">#ff0000</span>
+                        <input type="text" id="colorValue" value="#ff0000" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" placeholder="#FF00FF">
                     </div>
 
-                    <!-- 2Dカラーピッカー -->
-                    <div class="custom-color-picker">
-                        <!-- 色相スライダー -->
-                        <div class="slider-group">
-                            <label for="hueSlider">
-                                <span class="slider-label">🌈 色相</span>
-                                <span class="slider-value" id="hueValue">0°</span>
-                            </label>
-                            <input type="range" id="hueSlider" min="0" max="360" value="0" class="color-slider hue-slider">
-                        </div>
-
-                        <!-- 2D カラーピッカー（彩度 × 明度） -->
-                        <div class="color-picker-2d-container">
-                            <label class="slider-label">💧 彩度 × ☀️ 明度</label>
-                            <canvas id="colorPicker2D" width="280" height="200"></canvas>
-                        </div>
-
-                        <!-- 彩度・明度の値表示 -->
-                        <div class="color-values-display">
-                            <span class="color-detail">
-                                <span class="value-label">彩度:</span>
-                                <span class="value-number" id="saturationValue">100%</span>
-                            </span>
-                            <span class="color-detail">
-                                <span class="value-label">明度:</span>
-                                <span class="value-number" id="lightnessValue">50%</span>
-                            </span>
-                        </div>
+                    <!-- 色相スライダー -->
+                    <div class="hue-slider-container">
+                        <input type="range" id="hueSlider" min="0" max="360" value="0" class="color-slider hue-slider">
                     </div>
 
                     <!-- プリセット色 -->
@@ -112,45 +83,31 @@
                             <button class="preset-color" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
                             <button class="preset-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
                             <button class="preset-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
+                            <button class="preset-color" data-color="#00c957" style="background-color: #00c957;" title="エメラルドグリーン"></button>
                             <button class="preset-color" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
                             <button class="preset-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
                             <button class="preset-color" data-color="#8000ff" style="background-color: #8000ff;" title="紫"></button>
                             <button class="preset-color" data-color="#ff00ff" style="background-color: #ff00ff;" title="マゼンタ"></button>
                             <button class="preset-color" data-color="#00ffff" style="background-color: #00ffff;" title="シアン"></button>
                             <button class="preset-color" data-color="#ffffff" style="background-color: #ffffff;" title="白"></button>
-                            <button class="preset-color" data-color="#000000" style="background-color: #000000;" title="黒"></button>
                         </div>
                     </div>
-
-                    <p style="text-align: center; color: #718096; font-size: 0.9rem; margin-top: 15px;">
-                        💡 スライダーを動かすと自動的に反映されます
-                    </p>
                 </div>
 
                 <!-- 自動制御モード -->
                 <div class="auto-mode" id="autoMode" style="display: none;">
-                    <h3>自動制御パターン</h3>
                     <div class="pattern-selection">
                         <div class="pattern-option">
                             <input type="radio" id="pattern1" name="pattern" value="1" checked>
-                            <label for="pattern1">
-                                <span class="pattern-name">パターン1: 順次変化</span>
-                                <span class="pattern-desc">赤 → 橙 → 黄 → 緑 → 青 → 紫 → ピンク</span>
-                            </label>
+                            <label for="pattern1">パターン1: 順次変化 <span class="pattern-desc">(赤→橙→黄→緑→青→紫→ピンク)</span></label>
                         </div>
                         <div class="pattern-option">
                             <input type="radio" id="pattern2" name="pattern" value="2">
-                            <label for="pattern2">
-                                <span class="pattern-name">パターン2: 点滅</span>
-                                <span class="pattern-desc">各色で点滅しながら変化</span>
-                            </label>
+                            <label for="pattern2">パターン2: 点滅 <span class="pattern-desc">(各色で点滅しながら変化)</span></label>
                         </div>
                         <div class="pattern-option">
                             <input type="radio" id="pattern3" name="pattern" value="3">
-                            <label for="pattern3">
-                                <span class="pattern-name">パターン3: 高速変化</span>
-                                <span class="pattern-desc">高速で色を切り替え</span>
-                            </label>
+                            <label for="pattern3">パターン3: 虹色グラデーション <span class="pattern-desc">(滑らかな変化)</span></label>
                         </div>
                     </div>
                     <div class="auto-controls">
@@ -165,13 +122,6 @@
                 </div>
             </section>
         </main>
-
-        <footer>
-            <div class="info">
-                <p>💡 Raspberry Pi Pico W + Web Bluetooth API</p>
-                <p><small>※ このアプリはHTTPS環境でのみ動作します</small></p>
-            </div>
-        </footer>
     </div>
 
     <script src="./script_multi.js"></script>
