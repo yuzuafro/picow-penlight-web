@@ -4,8 +4,8 @@
   "description": "Raspberry Pi Pico Colorlight Controller",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#6366f1",
+  "background_color": "#f48fb1",
+  "theme_color": "#f48fb1",
   "orientation": "portrait",
   "icons": [
     {
