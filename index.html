@@ -73,6 +73,7 @@
                     <div class="mode-buttons">
                         <button id="colorModeBtn" class="btn btn-mode active">色選択モード</button>
                         <button id="autoModeBtn" class="btn btn-mode">自動制御モード</button>
+                        <button id="musicModeBtn" class="btn btn-mode">音楽連動モード</button>
                     </div>
                 </div>
 
@@ -126,6 +127,58 @@
                     <div class="auto-controls">
                         <button id="startAutoBtn" class="btn btn-success">自動制御開始</button>
                         <button id="stopAutoBtn" class="btn btn-danger" style="display: none;">自動制御停止</button>
+                    </div>
+                </div>
+
+                <!-- 音楽連動モード -->
+                <div class="music-mode" id="musicMode" style="display: none;">
+                    <div class="music-controls">
+                        <button id="startMusicBtn" class="btn btn-success">音楽連動開始</button>
+                        <button id="stopMusicBtn" class="btn btn-danger" style="display: none;">音楽連動停止</button>
+                    </div>
+
+                    <div class="music-settings" id="musicSettings" style="display: none;">
+                        <h3>音量レベル</h3>
+                        <div class="volume-meter">
+                            <div class="volume-bar" id="volumeBar"></div>
+                        </div>
+
+                        <h3>感度調整</h3>
+                        <div class="sensitivity-control">
+                            <input type="range" id="sensitivitySlider" min="1" max="10" value="5" class="sensitivity-slider">
+                            <span id="sensitivityValue">5</span>
+                        </div>
+
+                        <h3>エフェクトモード</h3>
+                        <div class="music-effect-mode">
+                            <div class="effect-option">
+                                <input type="radio" id="effectBrightness" name="musicEffect" value="brightness" checked>
+                                <label for="effectBrightness">明るさ変化 <span class="effect-desc">(単色で明るさが変化)</span></label>
+                            </div>
+                            <div class="effect-option">
+                                <input type="radio" id="effectFrequency" name="musicEffect" value="frequency">
+                                <label for="effectFrequency">周波数連動 <span class="effect-desc">(低音=赤、中音=緑、高音=青)</span></label>
+                            </div>
+                            <div class="effect-option">
+                                <input type="radio" id="effectBeat" name="musicEffect" value="beat">
+                                <label for="effectBeat">ビート検出 <span class="effect-desc">(ビートで虹色に変化)</span></label>
+                            </div>
+                            <div class="effect-option">
+                                <input type="radio" id="effectRainbow" name="musicEffect" value="rainbow">
+                                <label for="effectRainbow">レインボー <span class="effect-desc">(音量で虹色がスクロール)</span></label>
+                            </div>
+                        </div>
+
+                        <h3 id="baseColorLabel">ベースカラー</h3>
+                        <div class="music-color-preset" id="musicColorPreset">
+                            <button class="music-preset-color active" data-color="#ff0000" style="background-color: #ff0000;" title="赤"></button>
+                            <button class="music-preset-color" data-color="#ffa500" style="background-color: #ffa500;" title="オレンジ"></button>
+                            <button class="music-preset-color" data-color="#ffff00" style="background-color: #ffff00;" title="黄色"></button>
+                            <button class="music-preset-color" data-color="#00ff00" style="background-color: #00ff00;" title="緑"></button>
+                            <button class="music-preset-color" data-color="#0000ff" style="background-color: #0000ff;" title="青"></button>
+                            <button class="music-preset-color" data-color="#8000ff" style="background-color: #8000ff;" title="紫"></button>
+                            <button class="music-preset-color" data-color="#ff00ff" style="background-color: #ff00ff;" title="マゼンタ"></button>
+                        </div>
                     </div>
                 </div>
 

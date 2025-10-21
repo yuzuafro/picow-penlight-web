@@ -1025,3 +1025,233 @@ section h4 {
 @keyframes loading {
     to { left: 100%; }
 }
+
+/* 音楽連動モード */
+.music-mode {
+    padding: 10px;
+    background: #fce4ec;
+    border-radius: 8px;
+    border: 1px solid #f8bbd0;
+}
+
+.music-info {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+}
+
+.music-info p {
+    margin: 4px 0;
+    color: #92114a;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.music-note {
+    color: #f48fb1;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.music-controls {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.music-controls .btn {
+    flex: 1;
+}
+
+.music-settings {
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+}
+
+.music-settings h3 {
+    margin-top: 10px;
+}
+
+.music-settings h3:first-child {
+    margin-top: 0;
+}
+
+/* 音量メーター */
+.volume-meter {
+    width: 100%;
+    height: 30px;
+    background: #fce4ec;
+    border: 2px solid #f8bbd0;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.volume-bar {
+    height: 100%;
+    background: linear-gradient(135deg, #c2185b 0%, #d81b60 50%, #f48fb1 100%);
+    transition: width 0.1s ease-out;
+    box-shadow: 0 0 10px rgba(194, 24, 91, 0.5);
+}
+
+/* 感度調整スライダー */
+.sensitivity-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.sensitivity-slider {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    outline: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    background: linear-gradient(to right, #f8bbd0, #c2185b);
+}
+
+.sensitivity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #c2185b;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(146, 17, 74, 0.3);
+    transition: all 0.2s ease;
+}
+
+.sensitivity-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(194, 24, 91, 0.4);
+}
+
+.sensitivity-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #c2185b;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(146, 17, 74, 0.3);
+    transition: all 0.2s ease;
+}
+
+.sensitivity-slider::-moz-range-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(194, 24, 91, 0.4);
+}
+
+#sensitivityValue {
+    font-weight: 700;
+    color: #c2185b;
+    font-size: 1rem;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* 音楽モード用カラープリセット */
+.music-color-preset {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.music-preset-color {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid #f8bbd0;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(146, 17, 74, 0.1);
+}
+
+.music-preset-color:hover {
+    transform: scale(1.08);
+    box-shadow: 0 2px 8px rgba(146, 17, 74, 0.2);
+    border-color: #c2185b;
+}
+
+.music-preset-color.active {
+    border-color: #c2185b;
+    border-width: 3px;
+    box-shadow: 0 0 0 2px rgba(194, 24, 91, 0.3);
+}
+
+.music-preset-color:active {
+    transform: scale(0.95);
+}
+
+/* エフェクトモード選択 */
+.music-effect-mode {
+    margin-bottom: 10px;
+}
+
+.effect-option {
+    margin-bottom: 8px;
+    padding: 8px;
+    background: #fce4ec;
+    border-radius: 5px;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.effect-option:hover {
+    border-color: #f8bbd0;
+}
+
+.effect-option input[type="radio"] {
+    margin-right: 8px;
+    cursor: pointer;
+    accent-color: #c2185b;
+}
+
+.effect-option label {
+    cursor: pointer;
+    color: #92114a;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    font-weight: 500;
+}
+
+.effect-desc {
+    color: #f48fb1;
+    font-size: 0.75rem;
+    font-style: italic;
+    margin-left: 5px;
+}
+
+.effect-option:has(input[type="radio"]:checked) {
+    background: white;
+    border-color: #c2185b;
+}
+
+.effect-option:has(input[type="radio"]:checked) label {
+    font-weight: 600;
+}
+
+@media (max-width: 480px) {
+    .music-color-preset {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+
+    .volume-meter {
+        height: 40px;
+    }
+
+    .effect-desc {
+        width: 100%;
+        margin-left: 20px;
+        margin-top: 2px;
+    }
+}

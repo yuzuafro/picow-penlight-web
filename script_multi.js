@@ -26,6 +26,29 @@ class MultiColorlightController {
         // カラーコード入力フィールドのフォーカス状態
         this.colorInputFocused = false;
 
+        // 音楽モード関連
+        this.isMusicMode = false;
+        this.audioContext = null;
+        this.analyser = null;
+        this.microphone = null;
+        this.musicAnimationId = null;
+        this.musicBaseColor = { r: 255, g: 0, b: 0 }; // デフォルトは赤
+        this.musicSensitivity = 5;
+        this.musicEffectMode = 'brightness'; // brightness, frequency, beat, rainbow
+        this.rainbowHue = 0; // レインボーモード用の色相
+        this.beatThreshold = 1.3; // ビート検出の閾値（前フレームの1.3倍）
+        this.lastVolume = 0; // 前フレームの音量
+        this.beatColorIndex = 0; // ビート時の色インデックス
+        this.beatColors = [
+            { r: 255, g: 0, b: 0 },     // 赤
+            { r: 255, g: 165, b: 0 },   // オレンジ
+            { r: 255, g: 255, b: 0 },   // 黄
+            { r: 0, g: 255, b: 0 },     // 緑
+            { r: 0, g: 255, b: 255 },   // シアン
+            { r: 0, g: 0, b: 255 },     // 青
+            { r: 138, g: 43, b: 226 }   // 紫
+        ];
+
         this.initializeElements();
         this.bindEvents();
         this.checkBluetoothSupport();
@@ -51,8 +74,10 @@ class MultiColorlightController {
         // モード制御
         this.colorModeBtn = document.getElementById('colorModeBtn');
         this.autoModeBtn = document.getElementById('autoModeBtn');
+        this.musicModeBtn = document.getElementById('musicModeBtn');
         this.colorMode = document.getElementById('colorMode');
         this.autoMode = document.getElementById('autoMode');
+        this.musicMode = document.getElementById('musicMode');
 
         // カラーピッカー
         this.hueSlider = document.getElementById('hueSlider');
@@ -66,6 +91,18 @@ class MultiColorlightController {
         this.patternRadios = document.querySelectorAll('input[name="pattern"]');
         this.startAutoBtn = document.getElementById('startAutoBtn');
         this.stopAutoBtn = document.getElementById('stopAutoBtn');
+
+        // 音楽モード
+        this.startMusicBtn = document.getElementById('startMusicBtn');
+        this.stopMusicBtn = document.getElementById('stopMusicBtn');
+        this.musicSettings = document.getElementById('musicSettings');
+        this.volumeBar = document.getElementById('volumeBar');
+        this.sensitivitySlider = document.getElementById('sensitivitySlider');
+        this.sensitivityValue = document.getElementById('sensitivityValue');
+        this.musicPresetColors = document.querySelectorAll('.music-preset-color');
+        this.musicEffectRadios = document.querySelectorAll('input[name="musicEffect"]');
+        this.baseColorLabel = document.getElementById('baseColorLabel');
+        this.musicColorPreset = document.getElementById('musicColorPreset');
 
         // 共通コントロール
         this.clearBtn = document.getElementById('clearBtn');
@@ -94,6 +131,7 @@ class MultiColorlightController {
         // モード切り替え
         this.colorModeBtn.addEventListener('click', () => this.switchToColorMode());
         this.autoModeBtn.addEventListener('click', () => this.switchToAutoMode());
+        this.musicModeBtn.addEventListener('click', () => this.switchToMusicMode());
 
         // 色相スライダー
         this.hueSlider.addEventListener('input', () => {
@@ -145,8 +183,50 @@ class MultiColorlightController {
         this.startAutoBtn.addEventListener('click', () => this.startAutoMode());
         this.stopAutoBtn.addEventListener('click', () => this.stopAutoMode());
 
+        // 音楽モード
+        this.startMusicBtn.addEventListener('click', () => this.startMusicMode());
+        this.stopMusicBtn.addEventListener('click', () => this.stopMusicMode());
+
+        this.sensitivitySlider.addEventListener('input', () => {
+            this.musicSensitivity = parseInt(this.sensitivitySlider.value);
+            this.sensitivityValue.textContent = this.musicSensitivity;
+        });
+
+        this.musicPresetColors.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const color = btn.dataset.color;
+                const rgb = this.hexToRgb(color);
+                if (rgb) {
+                    this.musicBaseColor = rgb;
+                    // アクティブ状態を更新
+                    this.musicPresetColors.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                }
+            });
+        });
+
+        // エフェクトモード切り替え
+        this.musicEffectRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.musicEffectMode = radio.value;
+                // エフェクトモードに応じてUIを更新
+                this.updateMusicEffectUI();
+            });
+        });
+
         // 共通コントロール
         this.clearBtn.addEventListener('click', () => this.clearLeds());
+    }
+
+    updateMusicEffectUI() {
+        // 周波数連動とレインボーモードではベースカラー選択を非表示
+        if (this.musicEffectMode === 'frequency' || this.musicEffectMode === 'rainbow') {
+            this.baseColorLabel.style.display = 'none';
+            this.musicColorPreset.style.display = 'none';
+        } else {
+            this.baseColorLabel.style.display = 'block';
+            this.musicColorPreset.style.display = 'grid';
+        }
     }
 
     checkBluetoothSupport() {
@@ -467,7 +547,45 @@ class MultiColorlightController {
     switchToColorMode() {
         this.colorModeBtn.classList.add('active');
         this.autoModeBtn.classList.remove('active');
+        this.musicModeBtn.classList.remove('active');
         this.colorMode.style.display = 'block';
+        this.autoMode.style.display = 'none';
+        this.musicMode.style.display = 'none';
+
+        // 全デバイスの自動モードを停止
+        this.devices.forEach((deviceInfo) => {
+            if (deviceInfo.isAutoMode) {
+                this.sendCommandToDevice(deviceInfo, 'STOP');
+                deviceInfo.isAutoMode = false;
+            }
+        });
+
+        // 音楽モードが動いていたら停止
+        if (this.isMusicMode) {
+            this.stopMusicMode();
+        }
+    }
+
+    switchToAutoMode() {
+        this.autoModeBtn.classList.add('active');
+        this.colorModeBtn.classList.remove('active');
+        this.musicModeBtn.classList.remove('active');
+        this.autoMode.style.display = 'block';
+        this.colorMode.style.display = 'none';
+        this.musicMode.style.display = 'none';
+
+        // 音楽モードが動いていたら停止
+        if (this.isMusicMode) {
+            this.stopMusicMode();
+        }
+    }
+
+    switchToMusicMode() {
+        this.musicModeBtn.classList.add('active');
+        this.colorModeBtn.classList.remove('active');
+        this.autoModeBtn.classList.remove('active');
+        this.musicMode.style.display = 'block';
+        this.colorMode.style.display = 'none';
         this.autoMode.style.display = 'none';
 
         // 全デバイスの自動モードを停止
@@ -477,13 +595,6 @@ class MultiColorlightController {
                 deviceInfo.isAutoMode = false;
             }
         });
-    }
-
-    switchToAutoMode() {
-        this.autoModeBtn.classList.add('active');
-        this.colorModeBtn.classList.remove('active');
-        this.autoMode.style.display = 'block';
-        this.colorMode.style.display = 'none';
     }
 
     // === カラーピッカー ===
@@ -711,6 +822,181 @@ class MultiColorlightController {
             s: Math.round(s * 100),
             l: Math.round(l * 100)
         };
+    }
+
+    // === 音楽モード ===
+
+    async startMusicMode() {
+        const targets = this.getTargetDevices();
+        if (targets.length === 0) {
+            this.showError('制御対象のデバイスがありません');
+            return;
+        }
+
+        try {
+            // マイクへのアクセスを要求
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+            // Web Audio APIのセットアップ
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 256;
+            this.microphone = this.audioContext.createMediaStreamSource(stream);
+            this.microphone.connect(this.analyser);
+
+            this.isMusicMode = true;
+            this.startMusicBtn.style.display = 'none';
+            this.stopMusicBtn.style.display = 'inline-block';
+            this.musicSettings.style.display = 'block';
+
+            // 音声解析ループを開始
+            this.analyzeMusicLoop();
+
+            console.log('音楽連動モード開始');
+        } catch (error) {
+            console.error('マイクアクセスエラー:', error);
+            this.showError('マイクへのアクセスが拒否されました。ブラウザの設定を確認してください。');
+        }
+    }
+
+    stopMusicMode() {
+        this.isMusicMode = false;
+
+        // アニメーションループを停止
+        if (this.musicAnimationId) {
+            cancelAnimationFrame(this.musicAnimationId);
+            this.musicAnimationId = null;
+        }
+
+        // Audio Contextをクリーンアップ
+        if (this.microphone) {
+            this.microphone.disconnect();
+            this.microphone = null;
+        }
+
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+
+        this.analyser = null;
+
+        this.stopMusicBtn.style.display = 'none';
+        this.startMusicBtn.style.display = 'inline-block';
+        this.musicSettings.style.display = 'none';
+
+        // 音量バーをリセット
+        this.volumeBar.style.width = '0%';
+
+        console.log('音楽連動モード停止');
+    }
+
+    analyzeMusicLoop() {
+        if (!this.isMusicMode || !this.analyser) {
+            return;
+        }
+
+        const bufferLength = this.analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        this.analyser.getByteFrequencyData(dataArray);
+
+        // 平均音量を計算
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+
+        // 感度を適用 (1-10 -> 0.5-2.0の乗数)
+        const sensitivityMultiplier = this.musicSensitivity / 5;
+        const adjustedVolume = Math.min(255, average * sensitivityMultiplier * 2);
+
+        // 音量バーを更新
+        const volumePercent = (adjustedVolume / 255) * 100;
+        this.volumeBar.style.width = `${volumePercent}%`;
+
+        // エフェクトモードに応じて色を計算
+        let r, g, b;
+
+        switch (this.musicEffectMode) {
+            case 'brightness':
+                // 明るさ変化モード：ベースカラーの明るさを音量に応じて調整
+                const brightness = adjustedVolume / 255;
+                r = Math.round(this.musicBaseColor.r * brightness);
+                g = Math.round(this.musicBaseColor.g * brightness);
+                b = Math.round(this.musicBaseColor.b * brightness);
+                break;
+
+            case 'frequency':
+                // 周波数連動モード：低音=赤、中音=緑、高音=青
+                const lowFreq = this.getFrequencyRange(dataArray, 0, bufferLength / 3);
+                const midFreq = this.getFrequencyRange(dataArray, bufferLength / 3, 2 * bufferLength / 3);
+                const highFreq = this.getFrequencyRange(dataArray, 2 * bufferLength / 3, bufferLength);
+
+                r = Math.min(255, Math.round(lowFreq * sensitivityMultiplier));
+                g = Math.min(255, Math.round(midFreq * sensitivityMultiplier));
+                b = Math.min(255, Math.round(highFreq * sensitivityMultiplier));
+                break;
+
+            case 'beat':
+                // ビート検出モード：音量が急上昇したら色変化
+                if (adjustedVolume > this.lastVolume * this.beatThreshold && adjustedVolume > 50) {
+                    // ビート検出！色を変更
+                    this.beatColorIndex = (this.beatColorIndex + 1) % this.beatColors.length;
+                }
+
+                const currentColor = this.beatColors[this.beatColorIndex];
+                const beatBrightness = adjustedVolume / 255;
+                r = Math.round(currentColor.r * beatBrightness);
+                g = Math.round(currentColor.g * beatBrightness);
+                b = Math.round(currentColor.b * beatBrightness);
+
+                this.lastVolume = adjustedVolume;
+                break;
+
+            case 'rainbow':
+                // レインボーモード：音量に応じて虹色がスクロール
+                if (adjustedVolume > 20) {
+                    // 音が鳴っているときだけ色相を進める
+                    this.rainbowHue = (this.rainbowHue + adjustedVolume / 50) % 360;
+                }
+
+                const rainbowRgb = this.hslToRgb(this.rainbowHue, 100, 50);
+                const rainbowBrightness = Math.max(0.3, adjustedVolume / 255); // 最低30%の明るさ
+                r = Math.round(rainbowRgb.r * rainbowBrightness);
+                g = Math.round(rainbowRgb.g * rainbowBrightness);
+                b = Math.round(rainbowRgb.b * rainbowBrightness);
+                break;
+
+            default:
+                r = g = b = 0;
+        }
+
+        // 制御対象デバイスに色を送信
+        const targets = this.getTargetDevices();
+        for (const deviceInfo of targets) {
+            try {
+                this.sendColorToDevice(deviceInfo, r, g, b);
+            } catch (error) {
+                console.error(`${deviceInfo.name} への送信エラー:`, error);
+            }
+        }
+
+        // 次のフレームをスケジュール
+        this.musicAnimationId = requestAnimationFrame(() => this.analyzeMusicLoop());
+    }
+
+    // 指定範囲の周波数の平均値を取得
+    getFrequencyRange(dataArray, start, end) {
+        let sum = 0;
+        const startIdx = Math.floor(start);
+        const endIdx = Math.floor(end);
+
+        for (let i = startIdx; i < endIdx; i++) {
+            sum += dataArray[i];
+        }
+
+        return sum / (endIdx - startIdx);
     }
 
     // === ユーティリティ ===
