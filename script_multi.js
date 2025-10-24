@@ -49,6 +49,10 @@ class MultiColorlightController {
             { r: 138, g: 43, b: 226 }   // 紫
         ];
 
+        // Bluetooth送信制御
+        this.lastMusicColorSendTime = 0;
+        this.musicColorSendInterval = 50; // 音楽モード時の送信間隔（ms）
+
         this.initializeElements();
         this.bindEvents();
         this.checkBluetoothSupport();
@@ -219,8 +223,8 @@ class MultiColorlightController {
     }
 
     updateMusicEffectUI() {
-        // 周波数連動とレインボーモードではベースカラー選択を非表示
-        if (this.musicEffectMode === 'frequency' || this.musicEffectMode === 'rainbow') {
+        // 周波数連動、音階連動、レインボーモードではベースカラー選択を非表示
+        if (this.musicEffectMode === 'frequency' || this.musicEffectMode === 'musicalScale' || this.musicEffectMode === 'rainbow') {
             this.baseColorLabel.style.display = 'none';
             this.musicColorPreset.style.display = 'none';
         } else {
@@ -286,7 +290,9 @@ class MultiColorlightController {
                 colorCharacteristic: colorCharacteristic,
                 controlCharacteristic: controlCharacteristic,
                 isConnected: true,
-                isAutoMode: false
+                isAutoMode: false,
+                isSending: false,  // 送信中フラグ
+                lastColor: { r: 0, g: 0, b: 0 }  // 最後に送信した色
             });
 
             // 接続時に初期色（赤）を送信
@@ -720,22 +726,69 @@ class MultiColorlightController {
     // === Bluetooth送信 ===
 
     async sendColorToDevice(deviceInfo, r, g, b) {
+        // デバイスの接続状態をチェック
+        if (!deviceInfo.device || !deviceInfo.device.gatt || !deviceInfo.device.gatt.connected) {
+            return; // 切断されている場合は静かに終了
+        }
+
         if (!deviceInfo.colorCharacteristic) {
             throw new Error('色制御キャラクタリスティックが利用できません');
         }
 
-        const colorData = new Uint8Array([r, g, b]);
-        await deviceInfo.colorCharacteristic.writeValue(colorData);
+        // 送信中の場合はスキップ
+        if (deviceInfo.isSending) {
+            return;
+        }
+
+        // 最後に送信した色と同じ場合はスキップ（音楽モード時の最適化）
+        if (this.isMusicMode &&
+            deviceInfo.lastColor.r === r &&
+            deviceInfo.lastColor.g === g &&
+            deviceInfo.lastColor.b === b) {
+            return;
+        }
+
+        try {
+            deviceInfo.isSending = true;
+            const colorData = new Uint8Array([r, g, b]);
+            await deviceInfo.colorCharacteristic.writeValue(colorData);
+
+            // 送信成功時に最後の色を記録
+            deviceInfo.lastColor = { r, g, b };
+        } catch (error) {
+            // 切断エラーは無視（デバイスが切断された可能性）
+            if (error.message && error.message.includes('GATT Server is disconnected')) {
+                return;
+            }
+            // その他のエラーは再スロー
+            throw error;
+        } finally {
+            deviceInfo.isSending = false;
+        }
     }
 
     async sendCommandToDevice(deviceInfo, command) {
+        // デバイスの接続状態をチェック
+        if (!deviceInfo.device || !deviceInfo.device.gatt || !deviceInfo.device.gatt.connected) {
+            return; // 切断されている場合は静かに終了
+        }
+
         if (!deviceInfo.controlCharacteristic) {
             throw new Error('制御キャラクタリスティックが利用できません');
         }
 
-        const encoder = new TextEncoder();
-        const commandData = encoder.encode(command);
-        await deviceInfo.controlCharacteristic.writeValue(commandData);
+        try {
+            const encoder = new TextEncoder();
+            const commandData = encoder.encode(command);
+            await deviceInfo.controlCharacteristic.writeValue(commandData);
+        } catch (error) {
+            // 切断エラーは無視（デバイスが切断された可能性）
+            if (error.message && error.message.includes('GATT Server is disconnected')) {
+                return;
+            }
+            // その他のエラーは再スロー
+            throw error;
+        }
     }
 
     // === 色変換関数 ===
@@ -840,7 +893,7 @@ class MultiColorlightController {
             // Web Audio APIのセットアップ
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 256;
+            this.analyser.fftSize = 4096; // 周波数解像度を上げる（256→4096で約11.7Hz/bin）
             this.microphone = this.audioContext.createMediaStreamSource(stream);
             this.microphone.connect(this.analyser);
 
@@ -938,6 +991,105 @@ class MultiColorlightController {
                 b = Math.min(255, Math.round(highFreq * sensitivityMultiplier));
                 break;
 
+            case 'musicalScale':
+                // 音階連動モード：ドレミファソラシ (C4-B5) の範囲を虹色に変化
+                // 倍音の影響を考慮し、ピーク検出とコントラスト計算で基本周波数を特定
+                const sampleRate = this.audioContext.sampleRate;
+                const fftSize = this.analyser.fftSize;
+
+                // 周波数ビンの解像度（Hz per bin）
+                const frequencyResolution = sampleRate / fftSize;
+
+                // ドレミファソラシの7音階の基本周波数（2オクターブ分）
+                // 各音階の中心周波数のみを使用してピーク検出
+                const musicalNotes = [
+                    { name: 'ド (C)',  centerFreqs: [261.6, 523.3], hue: 0 },      // 赤
+                    { name: 'レ (D)',  centerFreqs: [293.7, 587.3], hue: 30 },     // オレンジ
+                    { name: 'ミ (E)',  centerFreqs: [329.6, 659.3], hue: 60 },     // 黄色
+                    { name: 'ファ (F)', centerFreqs: [349.2, 698.5], hue: 120 },   // 緑
+                    { name: 'ソ (G)',  centerFreqs: [392.0, 784.0], hue: 180 },    // シアン
+                    { name: 'ラ (A)',  centerFreqs: [440.0, 880.0], hue: 240 },    // 青
+                    { name: 'シ (B)',  centerFreqs: [493.9, 987.8], hue: 280 }     // 紫
+                ];
+
+                // 各音階のピーク強度を計算（周辺との差分を考慮）
+                let maxScore = 0;
+                let dominantHue = 0;
+                let dominantNote = '';
+
+                for (const note of musicalNotes) {
+                    let noteScore = 0;
+
+                    for (const centerFreq of note.centerFreqs) {
+                        const centerBin = Math.floor(centerFreq / frequencyResolution);
+
+                        // 中心周波数の±3ビンの範囲でピークを検出
+                        const peakRange = 3;
+                        let peakSum = 0;
+                        let peakCount = 0;
+
+                        for (let i = -peakRange; i <= peakRange; i++) {
+                            const bin = centerBin + i;
+                            if (bin >= 0 && bin < dataArray.length) {
+                                peakSum += dataArray[bin];
+                                peakCount++;
+                            }
+                        }
+
+                        const peakAvg = peakSum / peakCount;
+
+                        // 周辺（±10ビン外側）の平均値を取得してノイズレベルを推定
+                        const surroundRange = 10;
+                        let surroundSum = 0;
+                        let surroundCount = 0;
+
+                        for (let i = -surroundRange - peakRange; i < -peakRange; i++) {
+                            const bin = centerBin + i;
+                            if (bin >= 0 && bin < dataArray.length) {
+                                surroundSum += dataArray[bin];
+                                surroundCount++;
+                            }
+                        }
+                        for (let i = peakRange + 1; i <= surroundRange + peakRange; i++) {
+                            const bin = centerBin + i;
+                            if (bin >= 0 && bin < dataArray.length) {
+                                surroundSum += dataArray[bin];
+                                surroundCount++;
+                            }
+                        }
+
+                        const surroundAvg = surroundSum / surroundCount;
+
+                        // コントラスト（ピーク - 周辺）を計算して、際立ちを評価
+                        const contrast = Math.max(0, peakAvg - surroundAvg);
+
+                        // 低音域（第1オクターブ）を1.5倍優先
+                        const weight = (centerFreq < 520) ? 1.5 : 1.0;
+                        noteScore += contrast * weight;
+                    }
+
+                    if (noteScore > maxScore) {
+                        maxScore = noteScore;
+                        dominantHue = note.hue;
+                        dominantNote = note.name;
+                    }
+                }
+
+                const maxIntensity = maxScore;
+
+                // 音量が十分にある場合のみ色を出力
+                if (maxIntensity > 10) {
+                    const musicalRgb = this.hslToRgb(dominantHue, 100, 50);
+                    const musicalBrightness = Math.min(1, (maxIntensity * sensitivityMultiplier) / 255);
+                    r = Math.round(musicalRgb.r * musicalBrightness);
+                    g = Math.round(musicalRgb.g * musicalBrightness);
+                    b = Math.round(musicalRgb.b * musicalBrightness);
+                } else {
+                    // 音が小さい場合は消灯
+                    r = g = b = 0;
+                }
+                break;
+
             case 'beat':
                 // ビート検出モード：音量が急上昇したら色変化
                 if (adjustedVolume > this.lastVolume * this.beatThreshold && adjustedVolume > 50) {
@@ -972,13 +1124,20 @@ class MultiColorlightController {
                 r = g = b = 0;
         }
 
-        // 制御対象デバイスに色を送信
-        const targets = this.getTargetDevices();
-        for (const deviceInfo of targets) {
-            try {
-                this.sendColorToDevice(deviceInfo, r, g, b);
-            } catch (error) {
-                console.error(`${deviceInfo.name} への送信エラー:`, error);
+        // 制御対象デバイスに色を送信（スロットリング付き）
+        const now = Date.now();
+        if (now - this.lastMusicColorSendTime >= this.musicColorSendInterval) {
+            this.lastMusicColorSendTime = now;
+
+            const targets = this.getTargetDevices();
+            for (const deviceInfo of targets) {
+                // awaitせずに非同期で送信（sendColorToDevice内で競合制御）
+                this.sendColorToDevice(deviceInfo, r, g, b).catch(error => {
+                    // エラーはログに記録するが処理は継続
+                    if (error.message && !error.message.includes('GATT operation already in progress')) {
+                        console.error(`${deviceInfo.name} への送信エラー:`, error);
+                    }
+                });
             }
         }
 
@@ -991,6 +1150,11 @@ class MultiColorlightController {
         let sum = 0;
         const startIdx = Math.floor(start);
         const endIdx = Math.floor(end);
+
+        // 範囲が無効な場合は0を返す
+        if (startIdx >= endIdx || startIdx < 0 || endIdx > dataArray.length) {
+            return 0;
+        }
 
         for (let i = startIdx; i < endIdx; i++) {
             sum += dataArray[i];
