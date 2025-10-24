@@ -26,7 +26,7 @@ body {
 /* ヘッダー */
 header {
     text-align: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: #92114a;
 }
 
@@ -39,7 +39,6 @@ header h1 {
 
 /* メインコンテンツ */
 main {
-    flex: 1;
     background: white;
     border-radius: 10px;
     padding: 12px;

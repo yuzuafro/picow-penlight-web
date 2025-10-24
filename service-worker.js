@@ -1,4 +1,4 @@
-const CACHE_NAME = 'penlight-v1.0.1';
+const CACHE_NAME = 'colorlight-v1.0.1';
 const urlsToCache = [
   './',
   './index.html',

@@ -242,7 +242,7 @@ class ColorlightController {
         this.disconnectBtn.style.display = 'inline-block';
         this.controlSection.style.display = 'block';
         this.controlSection.classList.add('fade-in');
-        console.log('ペンライトに接続しました');
+        console.log('ライトに接続しました');
     }
 
     onDisconnected() {
@@ -263,7 +263,7 @@ class ColorlightController {
         this.startAutoBtn.style.display = 'inline-block';
         this.stopAutoBtn.style.display = 'none';
 
-        console.log('ペンライトから切断しました');
+        console.log('ライトから切断しました');
     }
 
     showStatus(text, connected) {
@@ -445,7 +445,7 @@ class ColorlightController {
     // 現在の色を適用
     async applyCurrentColor() {
         if (!this.isConnected) {
-            this.showError('ペンライトに接続してください');
+            this.showError('ライトに接続してください');
             return;
         }
 
@@ -463,7 +463,7 @@ class ColorlightController {
     // 自動制御開始
     async startAutoMode() {
         if (!this.isConnected) {
-            this.showError('ペンライトに接続してください');
+            this.showError('ライトに接続してください');
             return;
         }
 
@@ -503,7 +503,7 @@ class ColorlightController {
     // 全消灯
     async clearLeds() {
         if (!this.isConnected) {
-            this.showError('ペンライトに接続してください');
+            this.showError('ライトに接続してください');
             return;
         }
 
